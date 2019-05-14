@@ -25,7 +25,7 @@ type LocationDistance struct {
 
 func RunLocationService() {
 	fmt.Println("Reading...")
-	fstream, err := ioutil.ReadFile("locations.json")
+	fstream, err := ioutil.ReadFile("location_data.json")
 	if err != nil {
 		fmt.Errorf("Failed Reading file", err)
 	}
