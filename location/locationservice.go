@@ -23,7 +23,7 @@ type LocationDistance struct {
 	Dist float64  `json:"distance"`
 }
 
-func main() {
+func RunLocationService() {
 	fmt.Println("Reading...")
 	fstream, err := ioutil.ReadFile("locations.json")
 	if err != nil {
