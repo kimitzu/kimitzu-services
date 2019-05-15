@@ -6,6 +6,7 @@ type Log struct {
 	Service  string
 	Message  interface{}
 	LogLevel int
+	Color    string
 }
 
 type LogManager struct {
@@ -20,7 +21,7 @@ func (l *LogManager) Start(logLevel int) {
 		select {
 		case log := <-l.LogQueue:
 			if log.LogLevel <= logLevel {
-				fmt.Printf("[%v] %v\n", log.Service, log.Message)
+				fmt.Printf("[%v] %v%v%v\n", log.Service, log.Color, log.Message, "\u001b[0m")
 			}
 		}
 	}
@@ -37,5 +38,17 @@ type LogPrinter struct {
 }
 
 func (p *LogPrinter) Info(message interface{}) {
-	p.Manager.LogQueue <- Log{Service: p.Service, Message: message, LogLevel: 0}
+	p.Manager.LogQueue <- Log{Service: p.Service, Message: message, LogLevel: 0, Color: "\u001b[1m"}
+}
+
+func (p *LogPrinter) Error(message interface{}) {
+	p.Manager.LogQueue <- Log{Service: p.Service, Message: message, LogLevel: 1, Color: "\u001b[31;1m"}
+}
+
+func (p *LogPrinter) Verbose(message interface{}) {
+	p.Manager.LogQueue <- Log{Service: p.Service, Message: message, LogLevel: 2, Color: "\u001b[33;1m"}
+}
+
+func (p *LogPrinter) Debug(message interface{}) {
+	p.Manager.LogQueue <- Log{Service: p.Service, Message: message, LogLevel: 3, Color: "\u001b[36;1m"}
 }

@@ -40,20 +40,52 @@ func findPeers(peerlist chan<- string, log *servicelogger.LogPrinter) {
 }
 
 func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, error) {
-	log.Info("Retrieving Peer Data: " + peer)
+	log.Debug("Retrieving Peer Data: " + peer)
 	ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
 	profile, err := grequests.Get("http://localhost:4002/ob/profile/"+peer+"?usecache=false", ro)
 	if err != nil {
-		log.Info(fmt.Sprintln("Can't Retrieve peer data from "+peer, err))
+		log.Error(fmt.Sprintln("Can't Retrieve peer data from "+peer, err))
 		return "", "", fmt.Errorf("Retrieve timeout")
 	}
 	listings, err := grequests.Get("http://localhost:4002/ob/listings/"+peer, ro)
 	if err != nil {
-		log.Info(fmt.Sprintln("Can't Retrive listing from peer "+peer, err))
+		log.Error(fmt.Sprintln("Can't Retrive listing from peer "+peer, err))
 		return "", "", fmt.Errorf("Retrieve timeout")
 	}
 
 	return profile.String(), listings.String(), nil
+}
+
+func digestPeer(peer string, log *servicelogger.LogPrinter) (*models.Peer, error) {
+	peerDat, listingDat, err := getPeerData(peer, log)
+	if err != nil {
+		val, exists := retryPeers[peer]
+		if !exists {
+			retryPeers[peer] = 1
+		} else {
+			retryPeers[peer]++
+		}
+		return nil, fmt.Errorf(fmt.Sprint("["+strconv.Itoa(val)+"] Error Retrieving Peer ", err))
+	}
+	peerJSON := make(map[string]interface{})
+	peerListings := []*models.Listing{}
+
+	json.Unmarshal([]byte(listingDat), &peerListings)
+	json.Unmarshal([]byte(peerDat), &peerJSON)
+
+	for _, listing := range peerListings {
+		listing.PeerSlug = peer + ":" + listing.Slug
+		listing.ParentPeer = peer
+		listings = append(listings, listing)
+	}
+
+	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
+	log.Verbose(fmt.Sprint(" len > ", strconv.Itoa(len(peerListings))))
+	return &models.Peer{
+		ID:       peer,
+		RawMap:   peerJSON,
+		RawData:  peerDat,
+		Listings: peerListings}, nil
 }
 
 func RunVoyagerService(log *servicelogger.LogPrinter) {
@@ -74,48 +106,22 @@ func RunVoyagerService(log *servicelogger.LogPrinter) {
 				if val, exists := retryPeers[peer]; exists && val >= 5 {
 					break
 				}
-
 				if _, exists := peerData[peer]; !exists {
-					log.Info("Found Peer: " + peer)
-					peerDat, listingDat, err := getPeerData(peer, log)
+					log.Debug("Found Peer: " + peer)
+					peerObj, err := digestPeer(peer, log)
 					if err != nil {
-						val, exists := retryPeers[peer]
-						if !exists {
-							retryPeers[peer] = 1
-						} else {
-							retryPeers[peer]++
-						}
-						log.Info(fmt.Sprint("["+strconv.Itoa(val)+"] Error Retrieving Peer ", err))
-						return
+						log.Error(err)
+						break
 					}
-					peerJSON := make(map[string]interface{})
-					peerListings := []*models.Listing{}
-
-					json.Unmarshal([]byte(listingDat), &peerListings)
-					json.Unmarshal([]byte(peerDat), &peerJSON)
-
-					for _, listing := range peerListings {
-						listing.PeerSlug = peer + ":" + listing.Slug
-						listing.ParentPeer = peer
-						listings = append(listings, listing)
-					}
-
-					log.Info(fmt.Sprint(" id  > ", peerJSON["name"]))
-					log.Info(fmt.Sprint(" len > ", strconv.Itoa(len(peerListings))))
-
-					peerData[peer] = &models.Peer{
-						ID:       peer,
-						RawMap:   peerJSON,
-						RawData:  peerDat,
-						Listings: peerListings}
-					peerObj, err := json.Marshal(peerData[peer])
+					peerData[peer] = peerObj
+					peerStr, err := json.Marshal(peerData[peer])
 					if err != nil {
-						log.Info("Failed loading to json " + peer)
+						log.Error("Failed loading to json " + peer)
 					}
 
-					ioutil.WriteFile("data/peers/"+peer, peerObj, 1)
+					ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
 				} else {
-					log.Info("Skipping Peer[Exists]: " + peer)
+					log.Debug("Skipping Peer[Exists]: " + peer)
 				}
 			}
 		}
