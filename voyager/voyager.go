@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
+
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 
 	"github.com/levigross/grequests"
@@ -19,8 +21,6 @@ import (
 var (
 	crawledPeers []string
 	pendingPeers chan string
-	peerData     map[string]*models.Peer
-	listings     []*models.Listing
 	retryPeers   map[string]int
 )
 
@@ -56,7 +56,7 @@ func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, er
 	return profile.String(), listings.String(), nil
 }
 
-func digestPeer(peer string, log *servicelogger.LogPrinter) (*models.Peer, error) {
+func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainStorage) (*models.Peer, error) {
 	peerDat, listingDat, err := getPeerData(peer, log)
 	if err != nil {
 		val, exists := retryPeers[peer]
@@ -76,7 +76,7 @@ func digestPeer(peer string, log *servicelogger.LogPrinter) (*models.Peer, error
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		listings = append(listings, listing)
+		store.Listings = append(store.Listings, listing)
 	}
 
 	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
@@ -88,7 +88,7 @@ func digestPeer(peer string, log *servicelogger.LogPrinter) (*models.Peer, error
 		Listings: peerListings}, nil
 }
 
-func Initialize(log *servicelogger.LogPrinter) {
+func Initialize(log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
 	log.Info("Initializing precrawled listing information...")
 	files, err := ioutil.ReadDir("data/peers")
 	if err != nil {
@@ -104,25 +104,25 @@ func Initialize(log *servicelogger.LogPrinter) {
 		json.Unmarshal(peer, &peerInfo)
 
 		for _, listing := range peerInfo.Listings {
-			listings = append(listings, listing)
+			store.Listings = append(store.Listings, listing)
 		}
 
-		peerData[peerInfo.ID] = &peerInfo
+		store.PeerData[peerInfo.ID] = &peerInfo
 	}
 }
 
-func RunVoyagerService(log *servicelogger.LogPrinter) {
+func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
 	log.Info("Initializing")
 	pendingPeers = make(chan string, 50)
 	crawledPeers = []string{}
-	peerData = make(map[string]*models.Peer)
 	retryPeers = make(map[string]int)
+	// peerData = make(map[string]*models.Peer)
+	// listings = []*models.Listing{}
 
-	listings = []*models.Listing{}
 	ensureDir("data/peers/.test")
 	go findPeers(pendingPeers, log)
 
-	Initialize(log)
+	Initialize(log, store)
 
 	// Digests found peers
 	go func() {
@@ -132,15 +132,15 @@ func RunVoyagerService(log *servicelogger.LogPrinter) {
 				if val, exists := retryPeers[peer]; exists && val >= 5 {
 					break
 				}
-				if _, exists := peerData[peer]; !exists {
+				if _, exists := store.PeerData[peer]; !exists {
 					log.Debug("Found Peer: " + peer)
-					peerObj, err := digestPeer(peer, log)
+					peerObj, err := digestPeer(peer, log, store)
 					if err != nil {
 						log.Error(err)
 						break
 					}
-					peerData[peer] = peerObj
-					peerStr, err := json.Marshal(peerData[peer])
+					store.PeerData[peer] = peerObj
+					peerStr, err := json.Marshal(store.PeerData[peer])
 					if err != nil {
 						log.Error("Failed loading to json " + peer)
 					}
@@ -155,7 +155,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter) {
 
 	http.HandleFunc("/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		jsn, err := json.Marshal(listings)
+		jsn, err := json.Marshal(store.Listings)
 		if err == nil {
 			fmt.Fprint(w, string(jsn))
 		} else {
@@ -167,7 +167,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter) {
 		w.Header().Set("Content-Type", "application/json")
 		qpeerid := r.URL.Query().Get("id")
 		var result []*models.Peer
-		for peerid, peer := range peerData {
+		for peerid, peer := range store.PeerData {
 			if qpeerid == peerid {
 				result = append(result, peer)
 			}

@@ -8,6 +8,7 @@ import (
 
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/voyager"
 )
 
@@ -38,6 +39,9 @@ func main() {
 	log.Info("Log Level: " + ArgLogLevel)
 	log.Info("Starting Services")
 
-	go voyager.RunVoyagerService(srvLog.Spawn("voyager"))
+	store := servicestore.InitializeStore()
+
+	go voyager.RunVoyagerService(srvLog.Spawn("voyager"), store)
 	location.RunLocationService(srvLog.Spawn("location"))
+
 }
