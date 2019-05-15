@@ -23,8 +23,8 @@ type LocationDistance struct {
 	Dist float64  `json:"distance"`
 }
 
-func RunLocationService() {
-	fmt.Println("Reading...")
+func RunLocationService(log chan<- string) {
+	log <- "Initializing"
 	fstream, err := ioutil.ReadFile("location_data.json")
 	if err != nil {
 		fmt.Errorf("Failed Reading file", err)
@@ -40,7 +40,7 @@ func RunLocationService() {
 		x := r.URL.Query().Get("x")
 		y := r.URL.Query().Get("y")
 
-		fmt.Println("Querying for: " + zipCode + country)
+		log <- fmt.Sprintln("Querying", r.URL.Query())
 		var result []Location
 		for _, loc := range obj {
 			var matches []bool
@@ -91,7 +91,7 @@ func RunLocationService() {
 
 	})
 
-	fmt.Println("Serving")
+	log <- "Serving at 0.0.0.0:8108"
 	http.ListenAndServe(":8108", nil)
 }
 
