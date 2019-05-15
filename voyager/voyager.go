@@ -10,12 +10,12 @@ import (
 	"strconv"
 	"time"
 
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
-
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
-
 	"github.com/levigross/grequests"
+
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/search"
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
 )
 
 var (
@@ -179,6 +179,19 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		} else {
 			fmt.Fprint(w, `{"error": "notFound"}`)
 		}
+	})
+
+	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		query := r.URL.Query().Get("query")
+		averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
+		if err != nil {
+			log.Error("Conversion error in /search/?averageRating")
+		}
+		log.Verbose("[/search] Parameter [query=" + query + "]")
+		results := search.Find(query, averageRating, store.Listings)
+		resultsResponse, _ := json.Marshal(results)
+		fmt.Fprint(w, string(resultsResponse))
 	})
 
 	log.Info("Serving at 0.0.0.0:8109")
