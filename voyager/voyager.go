@@ -88,6 +88,29 @@ func digestPeer(peer string, log *servicelogger.LogPrinter) (*models.Peer, error
 		Listings: peerListings}, nil
 }
 
+func Initialize(log *servicelogger.LogPrinter) {
+	log.Info("Initializing precrawled listing information...")
+	files, err := ioutil.ReadDir("data/peers")
+	if err != nil {
+		fmt.Println("Error reading data/peers directory")
+	}
+	for _, file := range files {
+		peer, err := ioutil.ReadFile("data/peers/" + file.Name())
+		if err != nil {
+			fmt.Println("Error reading data/peers/" + file.Name())
+		}
+
+		peerInfo := models.Peer{}
+		json.Unmarshal(peer, &peerInfo)
+
+		for _, listing := range peerInfo.Listings {
+			listings = append(listings, listing)
+		}
+
+		peerData[peerInfo.ID] = &peerInfo
+	}
+}
+
 func RunVoyagerService(log *servicelogger.LogPrinter) {
 	log.Info("Initializing")
 	pendingPeers = make(chan string, 50)
@@ -98,6 +121,9 @@ func RunVoyagerService(log *servicelogger.LogPrinter) {
 	listings = []*models.Listing{}
 	ensureDir("data/peers/.test")
 	go findPeers(pendingPeers, log)
+
+	Initialize(log)
+
 	// Digests found peers
 	go func() {
 		for {

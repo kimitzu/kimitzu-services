@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"strconv"
+	"time"
 
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
@@ -27,6 +28,9 @@ func init() {
 func main() {
 	srvLog := servicelogger.LogManager{}
 	go srvLog.Start(LogLevel)
+
+	// Deadlock prevention
+	time.Sleep(time.Second * 1)
 
 	log := srvLog.Spawn("ServiceLoader")
 	log.Info(fmt.Sprintf("Djali Services Daemon (%v)", Version))
