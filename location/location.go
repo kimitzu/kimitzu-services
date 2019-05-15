@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 )
 
 type Location struct {
@@ -23,8 +25,8 @@ type LocationDistance struct {
 	Dist float64  `json:"distance"`
 }
 
-func RunLocationService(log chan<- string) {
-	log <- "Initializing"
+func RunLocationService(log *servicelogger.LogPrinter) {
+	log.Info("Initializing")
 	fstream, err := ioutil.ReadFile("location_data.json")
 	if err != nil {
 		fmt.Errorf("Failed Reading file", err)
@@ -40,7 +42,7 @@ func RunLocationService(log chan<- string) {
 		x := r.URL.Query().Get("x")
 		y := r.URL.Query().Get("y")
 
-		log <- fmt.Sprintln("Querying", r.URL.Query())
+		log.Info(fmt.Sprintln("Querying", r.URL.Query()))
 		var result []Location
 		for _, loc := range obj {
 			var matches []bool
@@ -91,7 +93,7 @@ func RunLocationService(log chan<- string) {
 
 	})
 
-	log <- "Serving at 0.0.0.0:8108"
+	log.Info("Serving at 0.0.0.0:8108")
 	http.ListenAndServe(":8108", nil)
 }
 
