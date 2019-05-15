@@ -181,6 +181,14 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	})
 
+	http.HandleFunc("/debug/peer/add", func(w http.ResponseWriter, r *http.Request) {
+		peerID := r.URL.Query().Get("peerID")
+		digestPeer(peerID, log, store)
+		message := "Peer ID " + peerID + " manually added to voyager queue"
+		log.Debug(message)
+		fmt.Fprint(w, message)
+	})
+
 	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		query := r.URL.Query().Get("query")
