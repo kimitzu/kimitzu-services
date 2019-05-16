@@ -1,10 +1,25 @@
-# Go-Location Service
---- 
-Proof of reverse location search service
+# Djali Services
+* Location Service
+  * Distance within radius of (lat, lng)
+* Voyager Crawler Service
+* Search Service
 
-## Pros
-* It's really fast.
+# Installation
+```bash
+go get gitlab.com/kingsland-team-ph/djali/djali-services.git
+```
 
-## Install
-* Unpack `locations.rar` (cause github)
-* `go run locapi.go`
+# Run
+```bash
+go run bakedflood.go
+```
+
+To enabled logging (loglevels 1 to 5)
+```bash
+go run bakedflood.go -log <logLevel>
+```
+
+# Testing
+```bash
+go test ./... -v
+```
