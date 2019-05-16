@@ -25,16 +25,21 @@ type LocationDistance struct {
 	Dist float64  `json:"distance"`
 }
 
-func RunLocationService(log *servicelogger.LogPrinter) {
+func InitializeLocationService(log *servicelogger.LogPrinter) []Location {
 	log.Info("Initializing")
 	fstream, err := ioutil.ReadFile("location_data.json")
 	if err != nil {
-		fmt.Errorf("Failed Reading file", err)
+		fmt.Errorf("Failed Reading file %s", err)
 	}
 	obj := []Location{}
 	json.Unmarshal(fstream, &obj)
+	return obj
+}
 
-	http.HandleFunc("djali/location/query", func(w http.ResponseWriter, r *http.Request) {
+func RunLocationService(log *servicelogger.LogPrinter) {
+	obj := InitializeLocationService(log)
+
+	http.HandleFunc("/djali/location/query", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		zipCode := r.URL.Query().Get("zip")
 		country := r.URL.Query().Get("country")
@@ -65,24 +70,14 @@ func RunLocationService(log *servicelogger.LogPrinter) {
 
 	})
 
-	http.HandleFunc("djali/location/codesfrom", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/djali/location/codesfrom", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		x, _ := strconv.ParseFloat(r.URL.Query().Get("x"), 64)
 		y, _ := strconv.ParseFloat(r.URL.Query().Get("y"), 64)
 		within, _ := strconv.ParseFloat(r.URL.Query().Get("within"), 64)
 
-		var result []LocationDistance
-		for _, loc := range obj {
-			tarx, _ := strconv.ParseFloat(loc.X, 64)
-			tary, _ := strconv.ParseFloat(loc.Y, 64)
-			dist := Distance(x, y, tarx, tary)
-			if dist <= within {
-				fmt.Println("Found Something Nearby: ", loc)
-				fmt.Println("Distance between Locations: " + strconv.FormatFloat(dist, 'f', -1, 64))
-				result = append(result, LocationDistance{loc, dist})
-			}
-		}
+		result := getNearbyLocations(x, y, within, obj)
 
 		if len(result) != 0 {
 			jsn, _ := json.Marshal(result)
@@ -95,6 +90,19 @@ func RunLocationService(log *servicelogger.LogPrinter) {
 
 	log.Info("Serving at 0.0.0.0:8108")
 	http.ListenAndServe(":8108", nil)
+}
+
+func getNearbyLocations(x float64, y float64, radius float64, obj []Location) []LocationDistance {
+	var result []LocationDistance
+	for _, loc := range obj {
+		tarx, _ := strconv.ParseFloat(loc.X, 64)
+		tary, _ := strconv.ParseFloat(loc.Y, 64)
+		dist := Distance(x, y, tarx, tary)
+		if dist <= radius {
+			result = append(result, LocationDistance{loc, dist})
+		}
+	}
+	return result
 }
 
 func stringInSlice(a bool, list []bool) bool {

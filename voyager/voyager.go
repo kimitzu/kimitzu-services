@@ -153,7 +153,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	}()
 
-	http.HandleFunc("djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		jsn, err := json.Marshal(store.Listings)
 		if err == nil {
@@ -189,7 +189,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		fmt.Fprint(w, message)
 	})
 
-	http.HandleFunc("djali/search", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		query := r.URL.Query().Get("query")
 		averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
