@@ -34,7 +34,7 @@ func RunLocationService(log *servicelogger.LogPrinter) {
 	obj := []Location{}
 	json.Unmarshal(fstream, &obj)
 
-	http.HandleFunc("/query", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("djali/location/query", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		zipCode := r.URL.Query().Get("zip")
 		country := r.URL.Query().Get("country")
@@ -65,7 +65,7 @@ func RunLocationService(log *servicelogger.LogPrinter) {
 
 	})
 
-	http.HandleFunc("/codesfrom", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("djali/location/codesfrom", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		x, _ := strconv.ParseFloat(r.URL.Query().Get("x"), 64)

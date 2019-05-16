@@ -153,7 +153,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	}()
 
-	http.HandleFunc("/listings", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		jsn, err := json.Marshal(store.Listings)
 		if err == nil {
@@ -163,7 +163,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	})
 
-	http.HandleFunc("/peer", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/djali/peer/get", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		qpeerid := r.URL.Query().Get("id")
 		var result []*models.Peer
@@ -181,15 +181,15 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	})
 
-	http.HandleFunc("/debug/peer/add", func(w http.ResponseWriter, r *http.Request) {
-		peerID := r.URL.Query().Get("peerID")
+	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
+		peerID := r.URL.Query().Get("id")
 		digestPeer(peerID, log, store)
 		message := "Peer ID " + peerID + " manually added to voyager queue"
 		log.Debug(message)
 		fmt.Fprint(w, message)
 	})
 
-	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("djali/search", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		query := r.URL.Query().Get("query")
 		averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
