@@ -28,7 +28,7 @@ func findPeers(peerlist chan<- string, log *servicelogger.LogPrinter) {
 	for {
 		resp, err := grequests.Get("http://localhost:4002/ob/peers", nil)
 		if err != nil {
-			log.Info("Can't Load OpenBazaar Peers")
+			log.Error("Can't Load OpenBazaar Peers")
 		}
 		listJSON := []string{}
 		json.Unmarshal([]byte(resp.String()), &listJSON)
@@ -98,19 +98,22 @@ func Initialize(log *servicelogger.LogPrinter, store *servicestore.MainStorage) 
 		peer, err := ioutil.ReadFile("data/peers/" + file.Name())
 		if err != nil {
 			fmt.Println("Error reading data/peers/" + file.Name())
+			continue
 		}
 
 		peerInfo := models.Peer{}
 		json.Unmarshal(peer, &peerInfo)
 
-		for _, listing := range peerInfo.Listings {
-			store.Listings = append(store.Listings, listing)
-		}
+		store.Listings = append(store.Listings, peerInfo.Listings...)
+		// for _, listing := range peerInfo.Listings {
+		// 	store.Listings = append(store.Listings, listing)
+		// }
 
 		store.PeerData[peerInfo.ID] = &peerInfo
 	}
 }
 
+// RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
 func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
 	log.Info("Initializing")
 	pendingPeers = make(chan string, 50)
@@ -126,33 +129,31 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 
 	// Digests found peers
 	go func() {
-		for {
-			select {
-			case peer := <-pendingPeers:
-				if val, exists := retryPeers[peer]; exists && val >= 5 {
+		for peer := range pendingPeers {
+			if val, exists := retryPeers[peer]; exists && val >= 5 {
+				break
+			}
+			if _, exists := store.PeerData[peer]; !exists {
+				log.Debug("Found Peer: " + peer)
+				peerObj, err := digestPeer(peer, log, store)
+				if err != nil {
+					log.Error(err)
 					break
 				}
-				if _, exists := store.PeerData[peer]; !exists {
-					log.Debug("Found Peer: " + peer)
-					peerObj, err := digestPeer(peer, log, store)
-					if err != nil {
-						log.Error(err)
-						break
-					}
-					store.PeerData[peer] = peerObj
-					peerStr, err := json.Marshal(store.PeerData[peer])
-					if err != nil {
-						log.Error("Failed loading to json " + peer)
-					}
-
-					ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
-				} else {
-					log.Debug("Skipping Peer[Exists]: " + peer)
+				store.PeerData[peer] = peerObj
+				peerStr, err := json.Marshal(store.PeerData[peer])
+				if err != nil {
+					log.Error("Failed loading to json " + peer)
 				}
+
+				ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
+			} else {
+				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
 		}
 	}()
 
+	// http handler functions.
 	http.HandleFunc("/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		jsn, err := json.Marshal(store.Listings)
@@ -166,14 +167,15 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 	http.HandleFunc("/peer", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		qpeerid := r.URL.Query().Get("id")
-		var result []*models.Peer
-		for peerid, peer := range store.PeerData {
-			if qpeerid == peerid {
-				result = append(result, peer)
-			}
-		}
+		// var result []*models.Peer
+		// for peerid, peer := range store.PeerData {
+		// 	if qpeerid == peerid {
+		// 		result = append(result, peer)
+		// 	}
+		// }
+		result, exists := store.PeerData[qpeerid]
 
-		if len(result) != 0 {
+		if exists {
 			jsn, _ := json.Marshal(result)
 			fmt.Fprint(w, string(jsn))
 		} else {
