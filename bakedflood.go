@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/search"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
@@ -26,8 +27,8 @@ func init() {
 	Version = "0.0.1"
 }
 
-func lookupTest(log *servicelogger.LogPrinter, stubname string, searchEngine *search.QueryEngine, store *servicestore.MainStorage) int {
-	result := searchEngine.QueryListings(store.Listings, stubname)
+func lookupTest(log *servicelogger.LogPrinter, filter string, searchEngine *search.QueryEngine, store *servicestore.MainStorage) int {
+	result := searchEngine.QueryListings(store.Listings, filter)
 	return len(result)
 }
 
@@ -36,22 +37,35 @@ func test(srvLog *servicelogger.LogManager, log *servicelogger.LogPrinter, store
 	voyager.Initialize(srvLog.Spawn("voyager-init"), store)
 	log.Info(fmt.Sprintf("Store has %v entires.", len(store.Listings)))
 	log.Info("Starting Lookup...")
-	queryEngine.CreateQueryStub("asdsdaswe", `{$and: [{"price.amount": {$gt: 1000}}, {"price.currencyCode": "USD"}]}`)
-	queryEngine.CreateQueryStub("asdsaasda", `{"price.currencyCode": "USD"}`)
+
+	timeflags := make(chan bool, 2)
 
 	go func() {
 		mstart := time.Now()
-		count := lookupTest(log, "asdsdaswe", queryEngine, store)
+		count := lookupTest(log, `function(doc) {
+			return doc.price.currencyCode === 'USD'
+		}`, queryEngine, store)
 		msend := time.Now()
-		fmt.Printf(fmt.Sprintf("Results: found %v items in %v\n", count, msend.Sub(mstart)))
+		timeflags <- true
+		fmt.Printf(fmt.Sprintf("Price Code Results: found %v items in %v\n", count, msend.Sub(mstart)))
 	}()
 
-	time.Sleep(time.Second * 1)
-	amstart := time.Now()
-	acount := lookupTest(log, "asdsaasda", queryEngine, store)
-	amsend := time.Now()
+	go func() {
+		time.Sleep(time.Second * 1)
+		amstart := time.Now()
+		acount := lookupTest(log, `function(doc) {
+			return doc.price.currencyCode === 'USD' && doc.price.amount > 1000
+		}`, queryEngine, store)
+		amsend := time.Now()
+		timeflags <- true
+		fmt.Printf(fmt.Sprintf("USD Code Results: found %v items in %v\n", acount, amsend.Sub(amstart)))
+	}()
 
-	fmt.Printf(fmt.Sprintf("Results: found %v items in %v\n", acount, amsend.Sub(amstart)))
+	start := time.Now()
+	<-timeflags
+	<-timeflags
+	end := time.Now()
+	fmt.Printf(fmt.Sprintf("Total elapsed time: %v\n", end.Sub(start)))
 }
 
 func main() {
@@ -69,9 +83,10 @@ func main() {
 
 	store := servicestore.InitializeStore()
 
-	test(&srvLog, log, store)
+	//test(&srvLog, log, store)
+	time.Sleep(time.Second * 10)
 
-	// go voyager.RunVoyagerService(srvLog.Spawn("voyager"), store)
-	// location.RunLocationService(srvLog.Spawn("location"))
+	go voyager.RunVoyagerService(srvLog.Spawn("voyager"), store)
+	location.RunLocationService(srvLog.Spawn("location"))
 
 }

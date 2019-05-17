@@ -2,9 +2,11 @@ package search
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 
@@ -13,35 +15,47 @@ import (
 )
 
 type JSManager struct {
-	Vm  *otto.Otto
-	Log *servicelogger.LogPrinter
+	Vm        *otto.Otto
+	Log       *servicelogger.LogPrinter
+	Interrupt func()
+	Nuked     bool
 }
 
-func (sm *JSManager) Compare(document string, qstub string) (bool, error) {
-	// TODO do some JSON reencoding first to prevent Query Injection vulnerability.
-	// err := sm.Vm.Set("document", document)
-	// if err != nil {
-	// 	sm.Log.Error(fmt.Sprintf("Failed to import document: %v", err))
-	// }
-	code := fmt.Sprintf(`%v.test(%v)`, qstub, document)
+// Clone - Clones the VM context of the manager, returns a new copy.
+func (sm *JSManager) CloneMod(command string) *JSManager {
+	jsm := &JSManager{
+		Vm:  sm.Vm.Copy(),
+		Log: sm.Log,
+	}
+	jsm.Vm.Run(command)
+	jsm.AttachInterrupt()
+	return jsm
+}
+
+// AttachInterrupt - Attaches an interrupt channel to kill the VM
+func (sm *JSManager) AttachInterrupt() {
+	sm.Vm.Interrupt = make(chan func(), 1)
+	sm.Nuked = false
+}
+
+// Nuke - Nukes the VM by sending a panic to the VM
+func (sm *JSManager) Nuke() {
+	sm.Vm.Interrupt <- func() {
+		panic(errors.New("Kill Request"))
+	}
+	sm.Nuked = true
+}
+
+// Compare - Compares a json string document with a qstub
+func (sm *JSManager) Compare(document string) (bool, error) {
+	code := fmt.Sprintf(`q(%v)`, document)
+	//code := ``
 	vmval, err := sm.Vm.Run(code)
 	if err != nil {
 		return false, fmt.Errorf("Engine Error: %v \n--value--\n%v\n--code--\n%v", err, vmval, code)
 	}
-	// val, err := sm.Vm.Get("result")
-	// if err != nil {
-	// 	return false, fmt.Errorf("Query Error: %v", err)
-	// }
-	// sm.Log.Debug(fmt.Sprintf("\n--value--\n%v\n--code--\n%v\n", vmval, code))
 	result, _ := vmval.ToBoolean()
 	return result, nil
-}
-
-func (sm *JSManager) CreateQueryStub(signature string, query string) error {
-	code := fmt.Sprintf(`%v = new mingo.Query(%v)`, signature, query)
-	_, err := sm.Vm.Run(code)
-	// str, _ := res.ToString()
-	return err
 }
 
 func loadToVM(log *servicelogger.LogPrinter, vm *otto.Otto, filename string) error {
@@ -62,6 +76,7 @@ func loadToVM(log *servicelogger.LogPrinter, vm *otto.Otto, filename string) err
 	return nil
 }
 
+// InitializeJSVM - Spins up a new VM instance
 func InitializeJSVM(log *servicelogger.LogPrinter) (*JSManager, error) {
 	log.Debug("Loading Search Manager")
 	sm := JSManager{
@@ -71,92 +86,118 @@ func InitializeJSVM(log *servicelogger.LogPrinter) (*JSManager, error) {
 	for _, file := range []string{"external/babel.js", "external/polyfills.js", "external/mingo.js"} {
 		loadToVM(log, sm.Vm, file)
 	}
-	// sm.Vm.Run(`__querystubs = {}`)
+	sm.AttachInterrupt()
 	return &sm, nil
 }
 
-type QueryPacket struct {
-	Packet    *models.Listing
-	QueryStub string
-	Result    chan *models.Listing
-}
-
 type QueryEngine struct {
-	Managers       []*JSManager
-	Log            *servicelogger.LogPrinter
-	PendingPackets chan *QueryPacket
+	ParentVM *JSManager
+	Log      *servicelogger.LogPrinter
 }
 
-func QMuxWorker(id int, vm *JSManager, packetStream chan *QueryPacket) {
-	for packet := range packetStream {
+func QMuxWorker(id int, vm *JSManager, collections []*models.Listing, results chan *models.Listing) {
+	for _, packet := range collections {
 		//fmt.Printf("[Worker-%v] Processing %v\n", id, packet.Packet.Title)
-		data, _ := json.Marshal(packet.Packet)
-		result, _ := vm.Compare(string(data), packet.QueryStub)
+		data, _ := json.Marshal(packet)
+		result, _ := vm.Compare(string(data))
 		if result {
-			packet.Result <- packet.Packet
+			results <- packet
 		} else {
-			packet.Result <- nil
+			results <- nil
 		}
 	}
 }
 
-func (qe *QueryEngine) QueryMultiplexer() {
-	qe.Log.Info("Running Multiplexer")
-	for idx, sm := range qe.Managers {
-		go QMuxWorker(idx, sm, qe.PendingPackets)
-	}
-}
+// func (qe *QueryEngine) QueryMultiplexer() {
+// 	qe.Log.Info("Running Multiplexer")
+// 	for idx, sm := range qe.Managers {
+// 		go QMuxWorker(idx, sm, qe.PendingPackets)
+// 	}
+// }
 
-func (qe *QueryEngine) QueryListings(collection []*models.Listing, qstub string) []*models.Listing {
+func (qe *QueryEngine) QueryListings(collection []*models.Listing, query string) []*models.Listing {
+	WORKER_COUNT := 2
 	results := []*models.Listing{}
 	COLLECTION_COUNT := len(collection)
 	res := make(chan *models.Listing, COLLECTION_COUNT)
+	pendingPackets := make(chan *models.Listing, 1000)
 
-	for _, listing := range collection {
-		qe.Log.Debug(fmt.Sprintf("Sending: %v\n", listing.Title))
-		qe.PendingPackets <- &QueryPacket{Packet: listing, QueryStub: qstub, Result: res}
+	workers := []*JSManager{}
+	s1 := time.Now()
+	qe.Log.Verbose("Spinning up VMs...")
+	// Create The VMs
+	for i := 1; i <= WORKER_COUNT; i++ {
+		workers = append(workers, qe.ParentVM.CloneMod(fmt.Sprintf(`q = %v`, query)))
 	}
+	e1 := time.Now()
+	qe.Log.Verbose(fmt.Sprintf("SpinupVM: %v", e1.Sub(s1)))
 
+	s2 := time.Now()
+
+	qe.Log.Verbose("Spinning up Multiplexer...")
+	// Spin up the QueryMultiplexer
+	chunkSize := COLLECTION_COUNT / WORKER_COUNT
+	for idx, sm := range workers {
+		start := idx * chunkSize
+		end := (idx + 1) * chunkSize
+		remainder := COLLECTION_COUNT - end
+		if remainder < end-start {
+			qe.Log.Verbose("Sending the last bits")
+			end += COLLECTION_COUNT - end
+		}
+		chunk := collection[start:end]
+		qe.Log.Verbose(fmt.Sprintf("Chunk Range: [%v:%v] Rem: %v", start, end, remainder))
+		go QMuxWorker(idx, sm, chunk, res)
+	}
+	e2 := time.Now()
+	qe.Log.Verbose(fmt.Sprintf("SpinupMultiplex: %v", e2.Sub(s2)))
+
+	s3 := time.Now()
+	qe.Log.Verbose("Sending queries...")
+	// Send the Collection
+	// for _, listing := range collection {
+	// 	pendingPackets <- &QueryPacket{Packet: listing, Result: res}
+	// }
+	e3 := time.Now()
+	qe.Log.Verbose(fmt.Sprintf("SendQuery: %v", e3.Sub(s3)))
+
+	s4 := time.Now()
+	qe.Log.Verbose("Gathering Results...")
+	// Retrieve results
 	qe.Log.Debug(fmt.Sprintf("Waiting for the results..."))
 	for a := 1; a <= COLLECTION_COUNT; a++ {
 		result := <-res
-		qe.Log.Debug(fmt.Sprintf("[%v]RESULT: %v", a, result))
+		qe.Log.Debug(fmt.Sprintf("Recieving [%v]", a))
 		if result != nil {
 			results = append(results, result)
 		}
 	}
+	e4 := time.Now()
+	qe.Log.Verbose(fmt.Sprintf("GetResult: %v", e4.Sub(s4)))
+
+	s5 := time.Now()
+	qe.Log.Verbose("Nuking VMs...")
+	go func() {
+		close(pendingPackets)
+		// Nuke the workers
+		for _, worker := range workers {
+			worker.Nuke()
+		}
+	}()
+	e5 := time.Now()
+	qe.Log.Verbose(fmt.Sprintf("Nuke: %v", e5.Sub(s5)))
 
 	return results
-}
-
-func (qe *QueryEngine) CreateQueryStub(signature string, query string) error {
-	for _, sm := range qe.Managers {
-		code := fmt.Sprintf(`%v = new mingo.Query(%v)`, signature, query)
-		_, err := sm.Vm.Run(code)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func InitializeQueryEngine(log *servicelogger.LogPrinter, workers int) *QueryEngine {
 	log.Info("Initializing Query Engine")
 	qe := QueryEngine{}
 	qe.Log = log
-	qe.PendingPackets = make(chan *QueryPacket, 1000)
-	count := make(chan bool, workers)
-	for i := 0; i <= workers; i++ {
-		go func() {
-			se, _ := InitializeJSVM(log)
-			qe.Managers = append(qe.Managers, se)
-			count <- true
-		}()
-	}
-	for i := 0; i <= workers; i++ {
-		<-count
-	}
-	qe.QueryMultiplexer()
+	// qe.PendingPackets = make(chan *QueryPacket, 1000)
+	se, _ := InitializeJSVM(log)
+	qe.ParentVM = se
+
 	return &qe
 }
 
