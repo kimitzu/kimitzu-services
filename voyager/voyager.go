@@ -126,10 +126,12 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 	go findPeers(pendingPeers, log)
 
 	Initialize(log, store)
+	queryEngine := search.InitializeQueryEngine(log, 2)
 
 	// Digests found peers
 	go func() {
 		for peer := range pendingPeers {
+			log.Debug("Digesting Peer: " + peer)
 			if val, exists := retryPeers[peer]; exists && val >= 5 {
 				break
 			}
@@ -202,6 +204,22 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		results := search.Find(query, averageRating, store.Listings)
 		resultsResponse, _ := json.Marshal(results)
 		fmt.Fprint(w, string(resultsResponse))
+	})
+
+	http.HandleFunc("/advquery", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		defer r.Body.Close()
+		params := &search.QueryParameters{}
+		json.NewDecoder(r.Body).Decode(params)
+		params.Collection = store.Listings
+		params.WorkerCount = 2
+		results := queryEngine.QueryListings(params)
+		if results != nil {
+			resultsResponse, _ := json.Marshal(results)
+			fmt.Fprint(w, string(resultsResponse))
+		} else {
+			fmt.Fprint(w, `{"error": "No more documents to return."}`)
+		}
 	})
 
 	log.Info("Serving at 0.0.0.0:8109")

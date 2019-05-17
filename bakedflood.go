@@ -28,8 +28,17 @@ func init() {
 }
 
 func lookupTest(log *servicelogger.LogPrinter, filter string, searchEngine *search.QueryEngine, store *servicestore.MainStorage) int {
-	result := searchEngine.QueryListings(store.Listings, filter)
-	return len(result)
+	param := &search.QueryParameters{
+		Collection: store.Listings,
+		Limit:      10,
+		Query:      filter,
+	}
+	result := searchEngine.QueryListings(param)
+	log.Info(fmt.Sprintf("Returned: %v", result))
+	for idx, listing := range result.Result {
+		log.Verbose(fmt.Sprintf("[%v]Name: %v", idx, listing.Title))
+	}
+	return len(result.Result)
 }
 
 func test(srvLog *servicelogger.LogManager, log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
@@ -83,7 +92,7 @@ func main() {
 
 	store := servicestore.InitializeStore()
 
-	//test(&srvLog, log, store)
+	// test(&srvLog, log, store)
 	time.Sleep(time.Second * 10)
 
 	go voyager.RunVoyagerService(srvLog.Spawn("voyager"), store)

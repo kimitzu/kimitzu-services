@@ -95,6 +95,19 @@ type QueryEngine struct {
 	Log      *servicelogger.LogPrinter
 }
 
+type QueryParameters struct {
+	Collection  []*models.Listing `json:"-"`
+	Query       string            `json:"query"`
+	Limit       int               `json:"limit"`
+	Start       int               `json:"start"`
+	WorkerCount int               `json:"-"`
+}
+
+type QueryResponse struct {
+	Result []*models.Listing `json:"result"`
+	End    int               `json:"end"`
+}
+
 func QMuxWorker(id int, vm *JSManager, collections []*models.Listing, results chan *models.Listing) {
 	for _, packet := range collections {
 		//fmt.Printf("[Worker-%v] Processing %v\n", id, packet.Packet.Title)
@@ -108,25 +121,45 @@ func QMuxWorker(id int, vm *JSManager, collections []*models.Listing, results ch
 	}
 }
 
-// func (qe *QueryEngine) QueryMultiplexer() {
-// 	qe.Log.Info("Running Multiplexer")
-// 	for idx, sm := range qe.Managers {
-// 		go QMuxWorker(idx, sm, qe.PendingPackets)
-// 	}
-// }
+//func (qe *QueryEngine) QueryListings(collection []*models.Listing, query string, limit int) []*models.Listing {
+func (qe *QueryEngine) QueryListings(parameters *QueryParameters) *QueryResponse {
+	workerCount := 2
+	if parameters.WorkerCount != 0 {
+		workerCount = parameters.WorkerCount
+	}
+	query := parameters.Query
 
-func (qe *QueryEngine) QueryListings(collection []*models.Listing, query string) []*models.Listing {
-	WORKER_COUNT := 2
-	results := []*models.Listing{}
+	queryStart := 0
+	if parameters.Start != 0 {
+		queryStart = parameters.Start
+	}
+
+	if queryStart > len(parameters.Collection) {
+		return nil
+	}
+	queryEnd := queryStart
+	collection := parameters.Collection[queryStart:len(parameters.Collection)]
 	COLLECTION_COUNT := len(collection)
+
+	queryLimit := len(collection)
+	if parameters.Limit != 0 {
+		if queryLimit > COLLECTION_COUNT {
+			queryLimit = COLLECTION_COUNT
+		} else {
+			queryLimit = parameters.Limit
+		}
+	}
+
+	results := []*models.Listing{}
+
 	res := make(chan *models.Listing, COLLECTION_COUNT)
 	pendingPackets := make(chan *models.Listing, 1000)
-
 	workers := []*JSManager{}
+
 	s1 := time.Now()
 	qe.Log.Verbose("Spinning up VMs...")
 	// Create The VMs
-	for i := 1; i <= WORKER_COUNT; i++ {
+	for i := 1; i <= workerCount; i++ {
 		workers = append(workers, qe.ParentVM.CloneMod(fmt.Sprintf(`q = %v`, query)))
 	}
 	e1 := time.Now()
@@ -136,7 +169,7 @@ func (qe *QueryEngine) QueryListings(collection []*models.Listing, query string)
 
 	qe.Log.Verbose("Spinning up Multiplexer...")
 	// Spin up the QueryMultiplexer
-	chunkSize := COLLECTION_COUNT / WORKER_COUNT
+	chunkSize := COLLECTION_COUNT / workerCount
 	for idx, sm := range workers {
 		start := idx * chunkSize
 		end := (idx + 1) * chunkSize
@@ -170,7 +203,11 @@ func (qe *QueryEngine) QueryListings(collection []*models.Listing, query string)
 		qe.Log.Debug(fmt.Sprintf("Recieving [%v]", a))
 		if result != nil {
 			results = append(results, result)
+			if len(results) >= queryLimit {
+				break
+			}
 		}
+		queryEnd++
 	}
 	e4 := time.Now()
 	qe.Log.Verbose(fmt.Sprintf("GetResult: %v", e4.Sub(s4)))
@@ -180,14 +217,18 @@ func (qe *QueryEngine) QueryListings(collection []*models.Listing, query string)
 	go func() {
 		close(pendingPackets)
 		// Nuke the workers
-		for _, worker := range workers {
-			worker.Nuke()
-		}
+		// for _, worker := range workers {
+		// 	worker.Nuke()
+		// }
 	}()
 	e5 := time.Now()
 	qe.Log.Verbose(fmt.Sprintf("Nuke: %v", e5.Sub(s5)))
 
-	return results
+	// return results, queryEnd
+	return &QueryResponse{
+		Result: results,
+		End:    queryEnd,
+	}
 }
 
 func InitializeQueryEngine(log *servicelogger.LogPrinter, workers int) *QueryEngine {
