@@ -140,6 +140,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 	// listings = []*models.Listing{}
 
 	ensureDir("data/peers/.test")
+	ensureDir("data/images/.test")
 	go findPeers(pendingPeers, log)
 
 	Initialize(log, store)
