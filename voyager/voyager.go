@@ -3,6 +3,7 @@ package voyager
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -56,6 +57,21 @@ func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, er
 	return profile.String(), listings.String(), nil
 }
 
+func downloadFile(fileName string) error {
+	file, err := http.Get("http://localhost:4002/ipfs/" + fileName)
+	if err != nil {
+		panic(err)
+	}
+
+	outFile, err := os.Create("data/images/" + fileName)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = io.Copy(outFile, file.Body)
+	return err
+}
+
 func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainStorage) (*models.Peer, error) {
 	peerDat, listingDat, err := getPeerData(peer, log)
 	if err != nil {
@@ -77,6 +93,10 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
 		store.Listings = append(store.Listings, listing)
+
+		downloadFile(listing.Thumbnail.Medium)
+		downloadFile(listing.Thumbnail.Small)
+		downloadFile(listing.Thumbnail.Tiny)
 	}
 
 	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
@@ -123,6 +143,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 	// listings = []*models.Listing{}
 
 	ensureDir("data/peers/.test")
+	ensureDir("data/images/.test")
 	go findPeers(pendingPeers, log)
 
 	Initialize(log, store)
@@ -155,8 +176,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	}()
 
-	// http handler functions.
-	http.HandleFunc("/listings", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		jsn, err := json.Marshal(store.Listings)
 		if err == nil {
@@ -166,7 +186,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	})
 
-	http.HandleFunc("/peer", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/djali/peer/get", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		qpeerid := r.URL.Query().Get("id")
 		// var result []*models.Peer
@@ -185,16 +205,17 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		}
 	})
 
-	http.HandleFunc("/debug/peer/add", func(w http.ResponseWriter, r *http.Request) {
-		peerID := r.URL.Query().Get("peerID")
+	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
+		peerID := r.URL.Query().Get("id")
 		digestPeer(peerID, log, store)
 		message := "Peer ID " + peerID + " manually added to voyager queue"
 		log.Debug(message)
 		fmt.Fprint(w, message)
 	})
 
-	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		query := r.URL.Query().Get("query")
 		averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
 		if err != nil {
@@ -220,6 +241,26 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		} else {
 			fmt.Fprint(w, `{"error": "No more documents to return."}`)
 		}
+	})
+
+	http.HandleFunc("/djali/media", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		image, err := os.Open("data/images/" + id)
+		if err != nil {
+			fmt.Fprint(w, `{"response": "Media not found"}`)
+		}
+
+		// Setup response headers
+		fileHeader := make([]byte, 512)
+		image.Read(fileHeader)
+		contentType := http.DetectContentType(fileHeader)
+		stat, _ := image.Stat()
+		size := strconv.FormatInt(stat.Size(), 10)
+
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Content-Length", size)
+		image.Seek(0, 0)
+		io.Copy(w, image)
 	})
 
 	log.Info("Serving at 0.0.0.0:8109")
