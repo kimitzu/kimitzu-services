@@ -229,6 +229,8 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 
 	http.HandleFunc("/advquery", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		defer r.Body.Close()
 		params := &search.QueryParameters{}
 		json.NewDecoder(r.Body).Decode(params)
