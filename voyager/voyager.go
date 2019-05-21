@@ -92,7 +92,6 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		// store.Listings = append(store.Listings, listing)
 		store.Listings.Insert(listing, true)
 
 		downloadFile(listing.Thumbnail.Medium)
@@ -108,31 +107,6 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 		RawData:  peerDat,
 		Listings: peerListings}, nil
 }
-
-// func Initialize(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
-// 	log.Info("Initializing precrawled listing information...")
-// 	files, err := ioutil.ReadDir("data/peers")
-// 	if err != nil {
-// 		fmt.Println("Error reading data/peers directory")
-// 	}
-// 	for _, file := range files {
-// 		peer, err := ioutil.ReadFile("data/peers/" + file.Name())
-// 		if err != nil {
-// 			fmt.Println("Error reading data/peers/" + file.Name())
-// 			continue
-// 		}
-
-// 		peerInfo := models.Peer{}
-// 		json.Unmarshal(peer, &peerInfo)
-
-// 		store.Listings = append(store.Listings, peerInfo.Listings...)
-// 		// for _, listing := range peerInfo.Listings {
-// 		// 	store.Listings = append(store.Listings, listing)
-// 		// }
-
-// 		store.PeerData[peerInfo.ID] = &peerInfo
-// 	}
-// }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
 func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
@@ -151,10 +125,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		store.Pmap[interfpeer.ID] = doc.ID
 	}
 
-	// Initialize(log, store)
-	// queryEngine := search.InitializeQueryEngine(log, 2)
-
-	//store.Listings.
 	// Digests found peers
 	go func() {
 		for peer := range pendingPeers {
@@ -177,7 +147,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 				go store.Listings.FlushSE()
 				store.Listings.CommitAsync()
 				store.PeerData.CommitAsync()
-				// savePeer(store, peer, peerObj)
 			} else {
 				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
@@ -187,12 +156,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 
 	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		//listings := []*models.Listing{}
-		//for _, listing := range store.Listings.Store {
-		//	listinterf := &models.Listing{}
-		//	json.Unmarshal(listing.Content, listinterf)
-		//	listings = append(listings, listinterf)
-		//}x
 		jsn, err := chunk.TransDocArrtoJSON(store.Listings.Store)
 		if err == nil {
 			fmt.Fprint(w, string(jsn))
@@ -204,12 +167,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 	http.HandleFunc("/djali/peer/get", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		qpeerid := r.URL.Query().Get("id")
-		// var result []*models.Peer
-		// for peerid, peer := range store.PeerData {
-		// 	if qpeerid == peerid {
-		// 		result = append(result, peer)
-		// 	}
-		// }
 		docid, exists := store.Pmap[qpeerid]
 
 		if exists {
@@ -246,12 +203,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		query := r.URL.Query().Get("query")
 		filter := r.URL.Query().Get("filter")
-		//averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
-		// if err != nil {
-		// 	log.Error("Conversion error in /search/?averageRating")
-		// }
 		log.Verbose("[/search] Parameter [query=" + query + "]")
-		//results := search.Find(query, averageRating, store.Listings)
 
 		results := store.Listings.SearchIndex(query)
 		if filter != "" {
@@ -272,7 +224,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		json.NewDecoder(r.Body).Decode(params)
 
 		log.Verbose("[/search] Parameter [query=" + params.Query + "]")
-		//results := search.Find(query, averageRating, store.Listings)
 
 		var results []*chunk.Document
 
@@ -315,15 +266,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 
 	log.Info("Serving at 0.0.0.0:8109")
 	http.ListenAndServe(":8109", nil)
-}
-
-func savePeer(store *servicestore.MainStorage, peer string, peerObj *models.Peer) {
-	store.PeerData[peer] = peerObj
-	peerStr, err := json.Marshal(store.PeerData[peer])
-	if err != nil {
-		panic("Failed loading to json " + peer)
-	}
-	ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
 }
 
 func ensureDir(fileName string) {
