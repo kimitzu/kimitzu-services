@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -57,7 +56,12 @@ func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, er
 	return profile.String(), listings.String(), nil
 }
 
-func downloadFile(fileName string) error {
+func downloadFile(fileName string, log *servicelogger.LogPrinter) {
+	if doesFileExist("data/images/" + fileName) {
+		log.Verbose("File " + fileName + " already downloaded, skipping...")
+		return
+	}
+
 	file, err := http.Get("http://localhost:4002/ipfs/" + fileName)
 	if err != nil {
 		panic(err)
@@ -69,7 +73,6 @@ func downloadFile(fileName string) error {
 	}
 
 	_, err = io.Copy(outFile, file.Body)
-	return err
 }
 
 func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) (*models.Peer, error) {
@@ -92,11 +95,16 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		store.Listings.Insert(listing, true)
 
-		downloadFile(listing.Thumbnail.Medium)
-		downloadFile(listing.Thumbnail.Small)
-		downloadFile(listing.Thumbnail.Tiny)
+		/**
+		 * Removed due to double-save bug.
+		 * @Von, please permanently remove to confirm.
+		 */
+		// store.Listings.Insert(listing, true)
+
+		downloadFile(listing.Thumbnail.Medium, log)
+		downloadFile(listing.Thumbnail.Small, log)
+		downloadFile(listing.Thumbnail.Tiny, log)
 	}
 
 	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
@@ -276,4 +284,13 @@ func ensureDir(fileName string) {
 			panic(merr)
 		}
 	}
+}
+
+func doesFileExist(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }
