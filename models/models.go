@@ -8,25 +8,36 @@ type Peer struct {
 }
 
 type Listing struct {
-	PeerSlug           string    `json:"peerSlugId"`
-	ParentPeer         string    `json:"parentPeer"`
-	RawData            string    `json:"rawData"`
-	AcceptedCurrencies []string  `json:"acceptedCurrencies"`
-	AverageRating      int64     `json:"averageRating"`
-	Categories         []string  `json:"categories"`
-	CoinType           string    `json:"coinType"`
-	ContractType       string    `json:"contractType"`
-	Description        string    `json:"description"`
-	Hash               string    `json:"hash"`
-	Language           string    `json:"language"`
-	Moderators         []string  `json:"moderators"`
-	Nsfw               bool      `json:"nsfw"`
-	Price              Price     `json:"price"`
-	RatingCount        int64     `json:"ratingCount"`
-	ShipsTo            []string  `json:"shipsTo"`
-	Slug               string    `json:"slug"`
-	Thumbnail          Thumbnail `json:"thumbnail"`
-	Title              string    `json:"title"`
+	AcceptedCurrencies []string      `json:"acceptedCurrencies"`
+	AverageRating      int64         `json:"averageRating"`
+	Categories         []string      `json:"categories"`
+	CoinType           string        `json:"coinType"`
+	ContractType       string        `json:"contractType"`
+	Description        string        `json:"description"`
+	Hash               string        `json:"hash"`
+	Language           string        `json:"language"`
+	Location           Location      `json:"location"`
+	Moderators         []interface{} `json:"moderators"`
+	Nsfw               bool          `json:"nsfw"`
+	Price              Price         `json:"price"`
+	RatingCount        int64         `json:"ratingCount"`
+	Slug               string        `json:"slug"`
+	Thumbnail          Thumbnail     `json:"thumbnail"`
+	Title              string        `json:"title"`
+	PeerSlug           string        `json:"peerSlug"`
+	ParentPeer         string        `json:"parentPeer"`
+}
+
+type Location struct {
+	AddressOne string `json:"addressOne"`
+	AddressTwo string `json:"addressTwo"`
+	City       string `json:"city"`
+	Country    string `json:"country"`
+	Latitude   string `json:"latitude"`
+	Longitude  string `json:"longitude"`
+	PlusCode   string `json:"plusCode"`
+	State      string `json:"state"`
+	ZipCode    string `json:"zipCode"`
 }
 
 type Price struct {
