@@ -40,3 +40,10 @@ type Thumbnail struct {
 	Small  string `json:"small"`
 	Tiny   string `json:"tiny"`
 }
+
+type AdvancedSearchQuery struct {
+	Query   string   `json:"query"`
+	Filters []string `json:"filters"`
+	Limit   int      `json:"limit"`
+	Start   int      `json:"start"`
+}

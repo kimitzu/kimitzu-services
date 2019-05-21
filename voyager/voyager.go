@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,9 +13,9 @@ import (
 	"github.com/levigross/grequests"
 
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/search"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
+	"gitlab.com/nokusukun/go-menasai/chunk"
 )
 
 var (
@@ -72,7 +71,7 @@ func downloadFile(fileName string) error {
 	return err
 }
 
-func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainStorage) (*models.Peer, error) {
+func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) (*models.Peer, error) {
 	peerDat, listingDat, err := getPeerData(peer, log)
 	if err != nil {
 		val, exists := retryPeers[peer]
@@ -92,7 +91,8 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		store.Listings = append(store.Listings, listing)
+		// store.Listings = append(store.Listings, listing)
+		store.Listings.Insert(listing, true)
 
 		downloadFile(listing.Thumbnail.Medium)
 		downloadFile(listing.Thumbnail.Small)
@@ -108,77 +108,90 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 		Listings: peerListings}, nil
 }
 
-func Initialize(log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
-	log.Info("Initializing precrawled listing information...")
-	files, err := ioutil.ReadDir("data/peers")
-	if err != nil {
-		fmt.Println("Error reading data/peers directory")
-	}
-	for _, file := range files {
-		peer, err := ioutil.ReadFile("data/peers/" + file.Name())
-		if err != nil {
-			fmt.Println("Error reading data/peers/" + file.Name())
-			continue
-		}
+// func Initialize(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
+// 	log.Info("Initializing precrawled listing information...")
+// 	files, err := ioutil.ReadDir("data/peers")
+// 	if err != nil {
+// 		fmt.Println("Error reading data/peers directory")
+// 	}
+// 	for _, file := range files {
+// 		peer, err := ioutil.ReadFile("data/peers/" + file.Name())
+// 		if err != nil {
+// 			fmt.Println("Error reading data/peers/" + file.Name())
+// 			continue
+// 		}
 
-		peerInfo := models.Peer{}
-		json.Unmarshal(peer, &peerInfo)
+// 		peerInfo := models.Peer{}
+// 		json.Unmarshal(peer, &peerInfo)
 
-		store.Listings = append(store.Listings, peerInfo.Listings...)
-		// for _, listing := range peerInfo.Listings {
-		// 	store.Listings = append(store.Listings, listing)
-		// }
+// 		store.Listings = append(store.Listings, peerInfo.Listings...)
+// 		// for _, listing := range peerInfo.Listings {
+// 		// 	store.Listings = append(store.Listings, listing)
+// 		// }
 
-		store.PeerData[peerInfo.ID] = &peerInfo
-	}
-}
+// 		store.PeerData[peerInfo.ID] = &peerInfo
+// 	}
+// }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
-func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
+func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
 	log.Info("Initializing")
 	pendingPeers = make(chan string, 50)
-	crawledPeers = []string{}
 	retryPeers = make(map[string]int)
-	// peerData = make(map[string]*models.Peer)
-	// listings = []*models.Listing{}
 
 	ensureDir("data/peers/.test")
 	ensureDir("data/images/.test")
 	go findPeers(pendingPeers, log)
 
-	Initialize(log, store)
-	queryEngine := search.InitializeQueryEngine(log, 2)
+	for _, doc := range store.PeerData.Store {
+		interfpeer := models.Peer{}
+		doc.Export(&interfpeer)
 
+		store.Pmap[interfpeer.ID] = doc.ID
+	}
+
+	// Initialize(log, store)
+	// queryEngine := search.InitializeQueryEngine(log, 2)
+
+	//store.Listings.
 	// Digests found peers
 	go func() {
 		for peer := range pendingPeers {
 			log.Debug("Digesting Peer: " + peer)
 			if val, exists := retryPeers[peer]; exists && val >= 5 {
-				break
+				continue
 			}
-			if _, exists := store.PeerData[peer]; !exists {
+			if _, exists := store.Pmap[peer]; !exists {
 				log.Debug("Found Peer: " + peer)
 				peerObj, err := digestPeer(peer, log, store)
 				if err != nil {
 					log.Error(err)
-					break
+					continue
 				}
-				store.PeerData[peer] = peerObj
-				peerStr, err := json.Marshal(store.PeerData[peer])
-				if err != nil {
-					log.Error("Failed loading to json " + peer)
+				for _, listing := range peerObj.Listings {
+					store.Listings.InsertAsync(listing, true)
 				}
-
-				ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
+				peerObjID, _ := store.PeerData.Insert(peerObj.RawMap, true)
+				store.Pmap[peer] = peerObjID
+				go store.Listings.FlushSE()
+				store.Listings.CommitAsync()
+				store.PeerData.CommitAsync()
 			} else {
 				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
 		}
+		log.Error("Digesting stopped")
 	}()
 
 	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		jsn, err := json.Marshal(store.Listings)
+		//listings := []*models.Listing{}
+		//for _, listing := range store.Listings.Store {
+		//	listinterf := &models.Listing{}
+		//	json.Unmarshal(listing.Content, listinterf)
+		//	listings = append(listings, listinterf)
+		//}x
+		jsn, err := chunk.TransDocArrtoJSON(store.Listings.Store)
 		if err == nil {
 			fmt.Fprint(w, string(jsn))
 		} else {
@@ -195,11 +208,11 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		// 		result = append(result, peer)
 		// 	}
 		// }
-		result, exists := store.PeerData[qpeerid]
+		docid, exists := store.Pmap[qpeerid]
 
 		if exists {
-			jsn, _ := json.Marshal(result)
-			fmt.Fprint(w, string(jsn))
+			doc := store.PeerData.Get(docid)
+			fmt.Fprint(w, string(doc.Content))
 		} else {
 			fmt.Fprint(w, `{"error": "notFound"}`)
 		}
@@ -217,30 +230,50 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		query := r.URL.Query().Get("query")
-		averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
-		if err != nil {
-			log.Error("Conversion error in /search/?averageRating")
-		}
+		filter := r.URL.Query().Get("filter")
+		//averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
+		// if err != nil {
+		// 	log.Error("Conversion error in /search/?averageRating")
+		// }
 		log.Verbose("[/search] Parameter [query=" + query + "]")
-		results := search.Find(query, averageRating, store.Listings)
-		resultsResponse, _ := json.Marshal(results)
+		//results := search.Find(query, averageRating, store.Listings)
+
+		results := store.Listings.SearchIndex(query)
+		if filter != "" {
+			results = store.Listings.FilterCollection(results, filter)
+		}
+
+		fmt.Println("Result: ", results)
+		resultsResponse, _ := chunk.TransDocArrtoJSON(results)
 		fmt.Fprint(w, string(resultsResponse))
 	})
 
 	http.HandleFunc("/advquery", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		defer r.Body.Close()
-		params := &search.QueryParameters{}
+		params := &models.AdvancedSearchQuery{}
 		json.NewDecoder(r.Body).Decode(params)
-		params.Collection = store.Listings
-		params.WorkerCount = 2
-		results := queryEngine.QueryListings(params)
-		if results != nil {
-			resultsResponse, _ := json.Marshal(results)
-			fmt.Fprint(w, string(resultsResponse))
+
+		log.Verbose("[/search] Parameter [query=" + params.Query + "]")
+		//results := search.Find(query, averageRating, store.Listings)
+
+		var results []*chunk.Document
+
+		if params.Query == "~all" {
+			results = store.Listings.Store
 		} else {
-			fmt.Fprint(w, `{"error": "No more documents to return."}`)
+			results = store.Listings.SearchIndex(params.Query)
 		}
+
+		if len(params.Filters) != 0 {
+			for _, filter := range params.Filters {
+				log.Debug("Running filter: " + filter)
+				results = store.Listings.FilterCollection(results, filter)
+			}
+		}
+
+		resultsResponse, _ := chunk.TransDocArrtoJSON(results)
+		fmt.Fprint(w, string(resultsResponse))
 	})
 
 	http.HandleFunc("/djali/media", func(w http.ResponseWriter, r *http.Request) {

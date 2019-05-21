@@ -15,6 +15,7 @@ import (
 )
 
 type JSManager struct {
+	ID        string
 	Vm        *otto.Otto
 	Log       *servicelogger.LogPrinter
 	Interrupt func()
@@ -77,9 +78,10 @@ func loadToVM(log *servicelogger.LogPrinter, vm *otto.Otto, filename string) err
 }
 
 // InitializeJSVM - Spins up a new VM instance
-func InitializeJSVM(log *servicelogger.LogPrinter) (*JSManager, error) {
+func InitializeJSVM(id string, log *servicelogger.LogPrinter) (*JSManager, error) {
 	log.Debug("Loading Search Manager")
 	sm := JSManager{
+		ID:  id,
 		Vm:  otto.New(),
 		Log: log,
 	}
@@ -91,8 +93,9 @@ func InitializeJSVM(log *servicelogger.LogPrinter) (*JSManager, error) {
 }
 
 type QueryEngine struct {
-	ParentVM *JSManager
-	Log      *servicelogger.LogPrinter
+	ParentVM  *JSManager
+	ParkedVMs chan *JSManager
+	Log       *servicelogger.LogPrinter
 }
 
 type QueryParameters struct {
@@ -140,7 +143,7 @@ func (qe *QueryEngine) QueryListings(parameters *QueryParameters) *QueryResponse
 	queryEnd := queryStart
 	collection := parameters.Collection[queryStart:len(parameters.Collection)]
 	COLLECTION_COUNT := len(collection)
-
+	
 	queryLimit := len(collection)
 	if parameters.Limit != 0 {
 		if queryLimit > COLLECTION_COUNT {
@@ -157,13 +160,30 @@ func (qe *QueryEngine) QueryListings(parameters *QueryParameters) *QueryResponse
 	workers := []*JSManager{}
 
 	s1 := time.Now()
-	qe.Log.Verbose("Spinning up VMs...")
+	qe.Log.Verbose("Acquiring Parked VMs")
 	// Create The VMs
 	for i := 1; i <= workerCount; i++ {
-		workers = append(workers, qe.ParentVM.CloneMod(fmt.Sprintf(`q = %v`, query)))
+		vm := <-qe.ParkedVMs
+		qe.Log.Verbose(fmt.Sprintf("Acquired parked vm: %v", vm.ID))
+		vm.Vm.Run(fmt.Sprintf(`q = %v`, query))
+		workers = append(workers, vm)
 	}
 	e1 := time.Now()
-	qe.Log.Verbose(fmt.Sprintf("SpinupVM: %v", e1.Sub(s1)))
+	qe.Log.Verbose(fmt.Sprintf("AcquireVM: %v", e1.Sub(s1)))
+
+	// Defer to make sure that the VM gets returned to the VMBuffer
+	defer func() {
+		s5 := time.Now()
+		qe.Log.Verbose("Parking Used VMs...")
+		go func() {
+			close(pendingPackets)
+			for _, vm := range workers {
+				qe.ParkedVMs <- vm
+			}
+			e5 := time.Now()
+			qe.Log.Verbose(fmt.Sprintf("Park: %v", e5.Sub(s5)))
+		}()
+	}()
 
 	s2 := time.Now()
 
@@ -212,18 +232,6 @@ func (qe *QueryEngine) QueryListings(parameters *QueryParameters) *QueryResponse
 	e4 := time.Now()
 	qe.Log.Verbose(fmt.Sprintf("GetResult: %v", e4.Sub(s4)))
 
-	s5 := time.Now()
-	qe.Log.Verbose("Nuking VMs...")
-	go func() {
-		close(pendingPackets)
-		// Nuke the workers
-		// for _, worker := range workers {
-		// 	worker.Nuke()
-		// }
-	}()
-	e5 := time.Now()
-	qe.Log.Verbose(fmt.Sprintf("Nuke: %v", e5.Sub(s5)))
-
 	// return results, queryEnd
 	return &QueryResponse{
 		Result: results,
@@ -232,12 +240,21 @@ func (qe *QueryEngine) QueryListings(parameters *QueryParameters) *QueryResponse
 }
 
 func InitializeQueryEngine(log *servicelogger.LogPrinter, workers int) *QueryEngine {
+	const VMCOUNT = 6
 	log.Info("Initializing Query Engine")
 	qe := QueryEngine{}
+	qe.ParkedVMs = make(chan *JSManager, VMCOUNT)
 	qe.Log = log
+
+	// Create Managers
+	for i := 1; i <= VMCOUNT; i++ {
+		vm, _ := InitializeJSVM(fmt.Sprintf("jsvm-%v", i), log)
+		qe.ParkedVMs <- vm
+	}
+
 	// qe.PendingPackets = make(chan *QueryPacket, 1000)
-	se, _ := InitializeJSVM(log)
-	qe.ParentVM = se
+	// se, _ := InitializeJSVM(log)
+	// qe.ParentVM = se
 
 	return &qe
 }

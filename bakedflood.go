@@ -43,7 +43,7 @@ func lookupTest(log *servicelogger.LogPrinter, filter string, searchEngine *sear
 
 func test(srvLog *servicelogger.LogManager, log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
 	queryEngine := search.InitializeQueryEngine(srvLog.Spawn("explorer"), 20)
-	voyager.Initialize(srvLog.Spawn("voyager-init"), store)
+	// voyager.Initialize(srvLog.Spawn("voyager-init"), store)
 	log.Info(fmt.Sprintf("Store has %v entires.", len(store.Listings)))
 	log.Info("Starting Lookup...")
 
@@ -90,7 +90,7 @@ func main() {
 	log.Info("Log Level: " + ArgLogLevel)
 	log.Info("Starting Services")
 
-	store := servicestore.InitializeStore()
+	store := servicestore.InitializeManagedStorage()
 
 	// test(&srvLog, log, store)
 	time.Sleep(time.Second * 10)
