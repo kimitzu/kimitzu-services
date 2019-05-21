@@ -222,13 +222,20 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 
 	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
 		peerID := r.URL.Query().Get("id")
-		//peerObj, err := digestPeer(peerID, log, store)
-		//if err != nil {
-		//	fmt.Fprint(w, `{"response": "Error adding peer to queue"}`)
-		//}
-		//store.PeerData.InsertAsync(peerObj, true)
-		//savePeer(store, peerID, peerObj)
-		pendingPeers <- peerID
+
+		peerObj, err := digestPeer(peerID, log, store)
+		if err != nil {
+			fmt.Fprint(w, `{"response": "Error adding peer to queue"}`)
+		}
+		for _, listing := range peerObj.Listings {
+			store.Listings.InsertAsync(listing, true)
+		}
+		peerObjID, _ := store.PeerData.Insert(peerObj.RawMap, true)
+		store.Pmap[peerID] = peerObjID
+		go store.Listings.FlushSE()
+		store.Listings.CommitAsync()
+		store.PeerData.CommitAsync()
+
 		message := "Peer ID " + peerID + " manually added to voyager queue"
 		log.Debug(message)
 		fmt.Fprint(w, message)
