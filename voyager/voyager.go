@@ -163,13 +163,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 					log.Error(err)
 					break
 				}
-				store.PeerData[peer] = peerObj
-				peerStr, err := json.Marshal(store.PeerData[peer])
-				if err != nil {
-					log.Error("Failed loading to json " + peer)
-				}
-
-				ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
+				savePeer(store, peer, peerObj)
 			} else {
 				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
@@ -207,7 +201,11 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 
 	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
 		peerID := r.URL.Query().Get("id")
-		digestPeer(peerID, log, store)
+		peerObj, err := digestPeer(peerID, log, store)
+		if err != nil {
+			fmt.Fprint(w, `{"response": "Error adding peer to queue"}`)
+		}
+		savePeer(store, peerID, peerObj)
 		message := "Peer ID " + peerID + " manually added to voyager queue"
 		log.Debug(message)
 		fmt.Fprint(w, message)
@@ -267,6 +265,15 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainSt
 
 	log.Info("Serving at 0.0.0.0:8109")
 	http.ListenAndServe(":8109", nil)
+}
+
+func savePeer(store *servicestore.MainStorage, peer string, peerObj *models.Peer) {
+	store.PeerData[peer] = peerObj
+	peerStr, err := json.Marshal(store.PeerData[peer])
+	if err != nil {
+		panic("Failed loading to json " + peer)
+	}
+	ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
 }
 
 func ensureDir(fileName string) {
