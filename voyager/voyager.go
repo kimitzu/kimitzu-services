@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -57,7 +56,12 @@ func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, er
 	return profile.String(), listings.String(), nil
 }
 
-func downloadFile(fileName string) error {
+func downloadFile(fileName string, log *servicelogger.LogPrinter) {
+	if doesFileExist("data/images/" + fileName) {
+		log.Verbose("File " + fileName + " already downloaded, skipping...")
+		return
+	}
+
 	file, err := http.Get("http://localhost:4002/ipfs/" + fileName)
 	if err != nil {
 		panic(err)
@@ -69,7 +73,6 @@ func downloadFile(fileName string) error {
 	}
 
 	_, err = io.Copy(outFile, file.Body)
-	return err
 }
 
 func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) (*models.Peer, error) {
@@ -94,9 +97,15 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 		listing.ParentPeer = peer
 		store.Listings.Insert(listing, true)
 
-		downloadFile(listing.Thumbnail.Medium)
-		downloadFile(listing.Thumbnail.Small)
-		downloadFile(listing.Thumbnail.Tiny)
+		/**
+		 * Removed due to double-save bug.
+		 * @Von, please permanently remove to confirm.
+		 */
+		// store.Listings.Insert(listing, true)
+
+		downloadFile(listing.Thumbnail.Medium, log)
+		downloadFile(listing.Thumbnail.Small, log)
+		downloadFile(listing.Thumbnail.Tiny, log)
 	}
 
 	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
@@ -144,7 +153,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 				go store.Listings.FlushSE()
 				store.Listings.CommitAsync()
 				store.PeerData.CommitAsync()
-				// savePeer(store, peer, peerObj)
 			} else {
 				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
@@ -154,12 +162,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 
 	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		//listings := []*models.Listing{}
-		//for _, listing := range store.Listings.Store {
-		//	listinterf := &models.Listing{}
-		//	json.Unmarshal(listing.Content, listinterf)
-		//	listings = append(listings, listinterf)
-		//}x
 		jsn, err := chunk.TransDocArrtoJSON(store.Listings.Store)
 		if err == nil {
 			fmt.Fprint(w, string(jsn))
@@ -171,12 +173,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 	http.HandleFunc("/djali/peer/get", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		qpeerid := r.URL.Query().Get("id")
-		// var result []*models.Peer
-		// for peerid, peer := range store.PeerData {
-		// 	if qpeerid == peerid {
-		// 		result = append(result, peer)
-		// 	}
-		// }
 		docid, exists := store.Pmap[qpeerid]
 
 		if exists {
@@ -213,12 +209,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		query := r.URL.Query().Get("query")
 		filter := r.URL.Query().Get("filter")
-		//averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
-		// if err != nil {
-		// 	log.Error("Conversion error in /search/?averageRating")
-		// }
 		log.Verbose("[/search] Parameter [query=" + query + "]")
-		//results := search.Find(query, averageRating, store.Listings)
 
 		results := store.Listings.SearchIndex(query)
 		if filter != "" {
@@ -239,7 +230,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		json.NewDecoder(r.Body).Decode(params)
 
 		log.Verbose("[/search] Parameter [query=" + params.Query + "]")
-		//results := search.Find(query, averageRating, store.Listings)
 
 		var results []*chunk.Document
 
@@ -284,15 +274,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 	http.ListenAndServe(":8109", nil)
 }
 
-func savePeer(store *servicestore.MainStorage, peer string, peerObj *models.Peer) {
-	store.PeerData[peer] = peerObj
-	peerStr, err := json.Marshal(store.PeerData[peer])
-	if err != nil {
-		panic("Failed loading to json " + peer)
-	}
-	ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
-}
-
 func ensureDir(fileName string) {
 	dirName := filepath.Dir(fileName)
 	if _, serr := os.Stat(dirName); serr != nil {
@@ -301,4 +282,13 @@ func ensureDir(fileName string) {
 			panic(merr)
 		}
 	}
+}
+
+func doesFileExist(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }
