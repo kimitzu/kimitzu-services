@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -78,6 +79,7 @@ func test(srvLog *servicelogger.LogManager, log *servicelogger.LogPrinter, store
 }
 
 func main() {
+	log.SetFlags(0) // Disables internal logging
 	srvLog := servicelogger.LogManager{}
 	go srvLog.Start(LogLevel)
 

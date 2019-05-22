@@ -92,7 +92,6 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		// store.Listings = append(store.Listings, listing)
 		store.Listings.Insert(listing, true)
 
 		downloadFile(listing.Thumbnail.Medium)
@@ -108,31 +107,6 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 		RawData:  peerDat,
 		Listings: peerListings}, nil
 }
-
-// func Initialize(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
-// 	log.Info("Initializing precrawled listing information...")
-// 	files, err := ioutil.ReadDir("data/peers")
-// 	if err != nil {
-// 		fmt.Println("Error reading data/peers directory")
-// 	}
-// 	for _, file := range files {
-// 		peer, err := ioutil.ReadFile("data/peers/" + file.Name())
-// 		if err != nil {
-// 			fmt.Println("Error reading data/peers/" + file.Name())
-// 			continue
-// 		}
-
-// 		peerInfo := models.Peer{}
-// 		json.Unmarshal(peer, &peerInfo)
-
-// 		store.Listings = append(store.Listings, peerInfo.Listings...)
-// 		// for _, listing := range peerInfo.Listings {
-// 		// 	store.Listings = append(store.Listings, listing)
-// 		// }
-
-// 		store.PeerData[peerInfo.ID] = &peerInfo
-// 	}
-// }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
 func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
@@ -151,10 +125,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		store.Pmap[interfpeer.ID] = doc.ID
 	}
 
-	// Initialize(log, store)
-	// queryEngine := search.InitializeQueryEngine(log, 2)
-
-	//store.Listings.
 	// Digests found peers
 	go func() {
 		for peer := range pendingPeers {
@@ -168,9 +138,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 				if err != nil {
 					log.Error(err)
 					continue
-				}
-				for _, listing := range peerObj.Listings {
-					store.Listings.InsertAsync(listing, true)
 				}
 				peerObjID, _ := store.PeerData.Insert(peerObj.RawMap, true)
 				store.Pmap[peer] = peerObjID
