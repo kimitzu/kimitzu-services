@@ -6,10 +6,11 @@ import (
 	"io/ioutil"
 	"strings"
 
+	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
+
 	"github.com/PaesslerAG/gval"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
-	"gitlab.com/nokusukun/go-menasai/chunk"
 )
 
 // MainStorage is defunct, user MainManagedStorage
@@ -22,8 +23,8 @@ type MainStorage struct {
 //	Pmap is the peer mapping of the peerID to the chunk peerDocumentID
 type MainManagedStorage struct {
 	Pmap     map[string]string
-	PeerData *chunk.Chunk
-	Listings *chunk.Chunk
+	PeerData *gomenasai.Gomenasai
+	Listings *gomenasai.Gomenasai
 }
 
 func LoadLocationMap() map[string]map[string][]float64 {
@@ -61,41 +62,65 @@ func LoadCustomEngine() gval.Language {
 func InitializeManagedStorage() *MainManagedStorage {
 	store := MainManagedStorage{}
 	store.Pmap = make(map[string]string)
-	peerConfig := &chunk.Config{
-		ID:         "peers",
-		Path:       "data/peers.chk",
-		IndexDir:   "data/index_peers",
+	// peerConfig := &chunk.Config{
+	// 	ID:         "peers",
+	// 	Path:       "data/peers.chk",
+	// 	IndexDir:   "data/index_peers",
+	// 	IndexPaths: []string{"$.name", "$.shortDescription"},
+	// }
+
+	// peerdata, err := chunk.CreateChunk(peerConfig)
+	// if err != nil {
+	// 	fmt.Println("Storage Info: ", err)
+	// 	peerdata, err = chunk.LoadChunk(peerConfig.Path)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }
+
+	peerStorePath := "data/peers"
+	listingStorePath := "data/listings"
+
+	peerStoreConfig := &gomenasai.GomenasaiConfig{
+		Name:       "peers",
+		Path:       peerStorePath,
 		IndexPaths: []string{"$.name", "$.shortDescription"},
 	}
 
-	peerdata, err := chunk.CreateChunk(peerConfig)
-	if err != nil {
-		fmt.Println("Storage Info: ", err)
-		peerdata, err = chunk.LoadChunk(peerConfig.Path)
-		if err != nil {
-			panic(err)
-		}
-	}
-	store.PeerData = peerdata
-
-	listingConfig := &chunk.Config{
-		ID:         "listing",
-		Path:       "data/listings.chk",
-		IndexDir:   "data/index_listings",
+	listingStoreConfig := &gomenasai.GomenasaiConfig{
+		Name:       "listings",
+		Path:       listingStorePath,
 		IndexPaths: []string{"$.description", "$.title"},
 	}
 
-	listing, err := chunk.CreateChunk(listingConfig)
-	if err != nil {
-		fmt.Println("Storage Info: ", err)
-		listing, err = chunk.LoadChunk(listingConfig.Path)
+	if gomenasai.Exists(peerStorePath) {
+		peerdata, err := gomenasai.Load(peerStorePath)
 		if err != nil {
-			panic(err)
+			panic(fmt.Errorf("Failed to load peer database: %v", err))
 		}
+		store.PeerData = peerdata
+	} else {
+		peerdata, err := gomenasai.New(peerStoreConfig)
+		if err != nil {
+			panic(fmt.Errorf("Failed to create listing database: %v", err))
+		}
+		store.PeerData = peerdata
 	}
 
-	store.Listings = listing
-	store.Listings.OverrideEvalEngine(LoadCustomEngine())
+	if gomenasai.Exists(listingStorePath) {
+		listing, err := gomenasai.Load(listingStorePath)
+		if err != nil {
+			panic(fmt.Errorf("Failed to load listing database: %v", err))
+		}
+		store.Listings = listing
+	} else {
+		listing, err := gomenasai.New(listingStoreConfig)
+		if err != nil {
+			panic(fmt.Errorf("Failed to create listing databse: %v", err))
+		}
+		store.Listings = listing
+		store.Listings.OverrideEvalEngine(LoadCustomEngine())
+	}
 
 	return &store
 }

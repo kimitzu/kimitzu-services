@@ -15,7 +15,6 @@ import (
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
-	"gitlab.com/nokusukun/go-menasai/chunk"
 )
 
 var (
@@ -95,7 +94,7 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		store.Listings.Insert(listing, true)
+		store.Listings.Insert(listing)
 
 		/**
 		 * Removed due to double-save bug.
@@ -127,7 +126,9 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 	ensureDir("data/images/.test")
 	go findPeers(pendingPeers, log)
 
-	for _, doc := range store.PeerData.Store {
+	peers := store.PeerData.Search("")
+
+	for _, doc := range peers.Documents {
 		interfpeer := models.Peer{}
 		doc.Export(&interfpeer)
 
@@ -146,13 +147,14 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 				peerObj, err := digestPeer(peer, log, store)
 				if err != nil {
 					log.Error(err)
+					store.Pmap[peer] = ""
 					continue
 				}
-				peerObjID, _ := store.PeerData.Insert(peerObj.RawMap, true)
+				peerObjID, _ := store.PeerData.Insert(peerObj.RawMap)
 				store.Pmap[peer] = peerObjID
 				go store.Listings.FlushSE()
-				store.Listings.CommitAsync()
-				store.PeerData.CommitAsync()
+				store.Listings.Commit()
+				store.PeerData.Commit()
 			} else {
 				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
@@ -162,9 +164,10 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 
 	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		jsn, err := chunk.TransDocArrtoJSON(store.Listings.Store)
+		result := store.Listings.Search("")
+		jsn, err := result.ExportJSONArray()
 		if err == nil {
-			fmt.Fprint(w, string(jsn))
+			fmt.Fprint(w, jsn)
 		} else {
 			fmt.Fprint(w, `{"error": "notFound"}`)
 		}
@@ -174,13 +177,18 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		w.Header().Set("Content-Type", "application/json")
 		qpeerid := r.URL.Query().Get("id")
 		docid, exists := store.Pmap[qpeerid]
+		toret := ""
 
 		if exists {
-			doc := store.PeerData.Get(docid)
-			fmt.Fprint(w, string(doc.Content))
+			doc, err := store.PeerData.Get(docid)
+			if err != nil {
+				toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
+			}
+			toret = string(doc.Content)
 		} else {
-			fmt.Fprint(w, `{"error": "notFound"}`)
+			toret = `{"error": "notFound"}`
 		}
+		fmt.Fprint(w, toret)
 	})
 
 	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
@@ -191,13 +199,13 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 			fmt.Fprint(w, `{"response": "Error adding peer to queue"}`)
 		}
 		for _, listing := range peerObj.Listings {
-			store.Listings.InsertAsync(listing, true)
+			store.Listings.Insert(listing)
 		}
-		peerObjID, _ := store.PeerData.Insert(peerObj.RawMap, true)
+		peerObjID, _ := store.PeerData.Insert(peerObj.RawMap)
 		store.Pmap[peerID] = peerObjID
 		go store.Listings.FlushSE()
-		store.Listings.CommitAsync()
-		store.PeerData.CommitAsync()
+		store.Listings.Commit()
+		store.PeerData.Commit()
 
 		message := "Peer ID " + peerID + " manually added to voyager queue"
 		log.Debug(message)
@@ -211,13 +219,13 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		filter := r.URL.Query().Get("filter")
 		log.Verbose("[/search] Parameter [query=" + query + "]")
 
-		results := store.Listings.SearchIndex(query)
+		results := store.Listings.Search(query)
 		if filter != "" {
-			results = store.Listings.FilterCollection(results, filter)
+			results.Filter(filter)
 		}
 
 		fmt.Println("Result: ", results)
-		resultsResponse, _ := chunk.TransDocArrtoJSON(results)
+		resultsResponse, _ := results.ExportJSONArray()
 		fmt.Fprint(w, string(resultsResponse))
 	})
 
@@ -231,22 +239,20 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 
 		log.Verbose("[/search] Parameter [query=" + params.Query + "]")
 
-		var results []*chunk.Document
-
-		if params.Query == "~all" {
-			results = store.Listings.Store
-		} else {
-			results = store.Listings.SearchIndex(params.Query)
-		}
+		results := store.Listings.Search(params.Query)
 
 		if len(params.Filters) != 0 {
 			for _, filter := range params.Filters {
 				log.Debug("Running filter: " + filter)
-				results = store.Listings.FilterCollection(results, filter)
+				results.Filter(filter)
 			}
 		}
 
-		resultsResponse, _ := chunk.TransDocArrtoJSON(results)
+		if params.Limit != 0 {
+			results.Limit(params.Start, params.Limit)
+		}
+
+		resultsResponse, _ := results.ExportJSONArray()
 		fmt.Fprint(w, string(resultsResponse))
 	})
 
@@ -259,6 +265,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 
 		// Setup response headers
 		fileHeader := make([]byte, 512)
+
 		image.Read(fileHeader)
 		contentType := http.DetectContentType(fileHeader)
 		stat, _ := image.Stat()
