@@ -212,24 +212,26 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		fmt.Fprint(w, message)
 	})
 
+	// Deprecation Notice
+	//		Please remove this snippet down the lone
+	// http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 	query := r.URL.Query().Get("query")
+	// 	filter := r.URL.Query().Get("filter")
+	// 	log.Verbose("[/search] Parameter [query=" + query + "]")
+
+	// 	results := store.Listings.Search(query)
+	// 	if filter != "" {
+	// 		results.Filter(filter)
+	// 	}
+
+	// 	fmt.Println("Result: ", results)
+	// 	resultsResponse, _ := results.ExportJSONArray()
+	// 	fmt.Fprint(w, string(resultsResponse))
+	// })
+
 	http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		query := r.URL.Query().Get("query")
-		filter := r.URL.Query().Get("filter")
-		log.Verbose("[/search] Parameter [query=" + query + "]")
-
-		results := store.Listings.Search(query)
-		if filter != "" {
-			results.Filter(filter)
-		}
-
-		fmt.Println("Result: ", results)
-		resultsResponse, _ := results.ExportJSONArray()
-		fmt.Fprint(w, string(resultsResponse))
-	})
-
-	http.HandleFunc("/advquery", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
