@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"github.com/levigross/grequests"
 
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/search"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
 )
@@ -29,7 +27,7 @@ func findPeers(peerlist chan<- string, log *servicelogger.LogPrinter) {
 	for {
 		resp, err := grequests.Get("http://localhost:4002/ob/peers", nil)
 		if err != nil {
-			log.Info("Can't Load OpenBazaar Peers")
+			log.Error("Can't Load OpenBazaar Peers")
 		}
 		listJSON := []string{}
 		json.Unmarshal([]byte(resp.String()), &listJSON)
@@ -57,7 +55,12 @@ func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, er
 	return profile.String(), listings.String(), nil
 }
 
-func downloadFile(fileName string) error {
+func downloadFile(fileName string, log *servicelogger.LogPrinter) {
+	if doesFileExist("data/images/" + fileName) {
+		log.Verbose("File " + fileName + " already downloaded, skipping...")
+		return
+	}
+
 	file, err := http.Get("http://localhost:4002/ipfs/" + fileName)
 	if err != nil {
 		panic(err)
@@ -69,10 +72,9 @@ func downloadFile(fileName string) error {
 	}
 
 	_, err = io.Copy(outFile, file.Body)
-	return err
 }
 
-func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainStorage) (*models.Peer, error) {
+func DigestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) (*models.Peer, error) {
 	peerDat, listingDat, err := getPeerData(peer, log)
 	if err != nil {
 		val, exists := retryPeers[peer]
@@ -92,11 +94,17 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		store.Listings = append(store.Listings, listing)
+		store.Listings.Insert(listing)
 
-		downloadFile(listing.Thumbnail.Medium)
-		downloadFile(listing.Thumbnail.Small)
-		downloadFile(listing.Thumbnail.Tiny)
+		/**
+		 * Removed due to double-save bug.
+		 * @Von, please permanently remove to confirm.
+		 */
+		// store.Listings.Insert(listing, true)
+
+		downloadFile(listing.Thumbnail.Medium, log)
+		downloadFile(listing.Thumbnail.Small, log)
+		downloadFile(listing.Thumbnail.Tiny, log)
 	}
 
 	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
@@ -108,144 +116,52 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 		Listings: peerListings}, nil
 }
 
-func Initialize(log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
-	log.Info("Initializing precrawled listing information...")
-	files, err := ioutil.ReadDir("data/peers")
-	if err != nil {
-		fmt.Println("Error reading data/peers directory")
-	}
-	for _, file := range files {
-		peer, err := ioutil.ReadFile("data/peers/" + file.Name())
-		if err != nil {
-			fmt.Println("Error reading data/peers/" + file.Name())
-		}
-
-		peerInfo := models.Peer{}
-		json.Unmarshal(peer, &peerInfo)
-
-		for _, listing := range peerInfo.Listings {
-			store.Listings = append(store.Listings, listing)
-		}
-
-		store.PeerData[peerInfo.ID] = &peerInfo
-	}
-}
-
-func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainStorage) {
-	log.Info("Initializing")
+// RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
+func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
+	log.Info("Starting Voyager Service")
 	pendingPeers = make(chan string, 50)
-	crawledPeers = []string{}
 	retryPeers = make(map[string]int)
-	// peerData = make(map[string]*models.Peer)
-	// listings = []*models.Listing{}
 
 	ensureDir("data/peers/.test")
 	ensureDir("data/images/.test")
 	go findPeers(pendingPeers, log)
 
-	Initialize(log, store)
+	peers := store.PeerData.Search("")
+
+	for _, doc := range peers.Documents {
+		interfpeer := models.Peer{}
+		doc.Export(&interfpeer)
+
+		store.Pmap[interfpeer.ID] = doc.ID
+	}
 
 	// Digests found peers
 	go func() {
-		for {
-			select {
-			case peer := <-pendingPeers:
-				if val, exists := retryPeers[peer]; exists && val >= 5 {
-					break
+		for peer := range pendingPeers {
+			log.Debug("Digesting Peer: " + peer)
+			if val, exists := retryPeers[peer]; exists && val >= 5 {
+				continue
+			}
+			if _, exists := store.Pmap[peer]; !exists {
+				log.Debug("Found Peer: " + peer)
+				peerObj, err := DigestPeer(peer, log, store)
+				if err != nil {
+					log.Error(err)
+					store.Pmap[peer] = ""
+					continue
 				}
-				if _, exists := store.PeerData[peer]; !exists {
-					log.Debug("Found Peer: " + peer)
-					peerObj, err := digestPeer(peer, log, store)
-					if err != nil {
-						log.Error(err)
-						break
-					}
-					store.PeerData[peer] = peerObj
-					peerStr, err := json.Marshal(store.PeerData[peer])
-					if err != nil {
-						log.Error("Failed loading to json " + peer)
-					}
-
-					ioutil.WriteFile("data/peers/"+peer, peerStr, 1)
-				} else {
-					log.Debug("Skipping Peer[Exists]: " + peer)
-				}
+				peerObjID, _ := store.PeerData.Insert(peerObj.RawMap)
+				store.Pmap[peer] = peerObjID
+				go store.Listings.FlushSE()
+				store.Listings.Commit()
+				store.PeerData.Commit()
+			} else {
+				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
 		}
+		log.Error("Digesting stopped")
 	}()
 
-	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		jsn, err := json.Marshal(store.Listings)
-		if err == nil {
-			fmt.Fprint(w, string(jsn))
-		} else {
-			fmt.Fprint(w, `{"error": "notFound"}`)
-		}
-	})
-
-	http.HandleFunc("/djali/peer/get", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		qpeerid := r.URL.Query().Get("id")
-		var result []*models.Peer
-		for peerid, peer := range store.PeerData {
-			if qpeerid == peerid {
-				result = append(result, peer)
-			}
-		}
-
-		if len(result) != 0 {
-			jsn, _ := json.Marshal(result)
-			fmt.Fprint(w, string(jsn))
-		} else {
-			fmt.Fprint(w, `{"error": "notFound"}`)
-		}
-	})
-
-	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
-		peerID := r.URL.Query().Get("id")
-		digestPeer(peerID, log, store)
-		message := "Peer ID " + peerID + " manually added to voyager queue"
-		log.Debug(message)
-		fmt.Fprint(w, message)
-	})
-
-	http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		query := r.URL.Query().Get("query")
-		averageRating, err := strconv.ParseInt(r.URL.Query().Get("averageRating"), 10, 64)
-		if err != nil {
-			log.Error("Conversion error in /search/?averageRating")
-		}
-		log.Verbose("[/search] Parameter [query=" + query + "]")
-		results := search.Find(query, averageRating, store.Listings)
-		resultsResponse, _ := json.Marshal(results)
-		fmt.Fprint(w, string(resultsResponse))
-	})
-
-	http.HandleFunc("/djali/media", func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		image, err := os.Open("data/images/" + id)
-		if err != nil {
-			fmt.Fprint(w, `{"response": "Media not found"}`)
-		}
-
-		// Setup response headers
-		fileHeader := make([]byte, 512)
-		image.Read(fileHeader)
-		contentType := http.DetectContentType(fileHeader)
-		stat, _ := image.Stat()
-		size := strconv.FormatInt(stat.Size(), 10)
-
-		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Content-Length", size)
-		image.Seek(0, 0)
-		io.Copy(w, image)
-	})
-
-	log.Info("Serving at 0.0.0.0:8109")
-	http.ListenAndServe(":8109", nil)
 }
 
 func ensureDir(fileName string) {
@@ -256,4 +172,13 @@ func ensureDir(fileName string) {
 			panic(merr)
 		}
 	}
+}
+
+func doesFileExist(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }
