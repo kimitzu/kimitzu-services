@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/api"
+
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/search"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
@@ -98,6 +100,7 @@ func main() {
 	time.Sleep(time.Second * 10)
 
 	go voyager.RunVoyagerService(srvLog.Spawn("voyager"), store)
-	location.RunLocationService(srvLog.Spawn("location"))
+	go location.RunLocationService(srvLog.Spawn("location"))
+	api.RunHTTPService(srvLog.Spawn("api"), store)
 
 }

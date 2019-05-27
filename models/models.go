@@ -53,8 +53,9 @@ type Thumbnail struct {
 }
 
 type AdvancedSearchQuery struct {
-	Query   string   `json:"query"`
-	Filters []string `json:"filters"`
-	Limit   int      `json:"limit"`
-	Start   int      `json:"start"`
+	Query      string        `json:"query"`
+	Filters    []string      `json:"filters"`
+	Limit      int           `json:"limit"`
+	Start      int           `json:"start"`
+	Transforms []interface{} `json:"transforms"`
 }

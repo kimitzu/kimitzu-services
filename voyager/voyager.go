@@ -74,7 +74,7 @@ func downloadFile(fileName string, log *servicelogger.LogPrinter) {
 	_, err = io.Copy(outFile, file.Body)
 }
 
-func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) (*models.Peer, error) {
+func DigestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) (*models.Peer, error) {
 	peerDat, listingDat, err := getPeerData(peer, log)
 	if err != nil {
 		val, exists := retryPeers[peer]
@@ -118,7 +118,7 @@ func digestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
 func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
-	log.Info("Initializing")
+	log.Info("Starting Voyager Service")
 	pendingPeers = make(chan string, 50)
 	retryPeers = make(map[string]int)
 
@@ -144,7 +144,7 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 			}
 			if _, exists := store.Pmap[peer]; !exists {
 				log.Debug("Found Peer: " + peer)
-				peerObj, err := digestPeer(peer, log, store)
+				peerObj, err := DigestPeer(peer, log, store)
 				if err != nil {
 					log.Error(err)
 					store.Pmap[peer] = ""
@@ -162,125 +162,6 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 		log.Error("Digesting stopped")
 	}()
 
-	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		result := store.Listings.Search("")
-		jsn, err := result.ExportJSONArray()
-		if err == nil {
-			fmt.Fprint(w, jsn)
-		} else {
-			fmt.Fprint(w, `{"error": "notFound"}`)
-		}
-	})
-
-	http.HandleFunc("/djali/peer/get", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		qpeerid := r.URL.Query().Get("id")
-		docid, exists := store.Pmap[qpeerid]
-		toret := ""
-
-		if exists {
-			doc, err := store.PeerData.Get(docid)
-			if err != nil {
-				toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
-			}
-			toret = string(doc.Content)
-		} else {
-			toret = `{"error": "notFound"}`
-		}
-		fmt.Fprint(w, toret)
-	})
-
-	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
-		peerID := r.URL.Query().Get("id")
-
-		peerObj, err := digestPeer(peerID, log, store)
-		if err != nil {
-			fmt.Fprint(w, `{"response": "Error adding peer to queue"}`)
-		}
-		for _, listing := range peerObj.Listings {
-			store.Listings.Insert(listing)
-		}
-		peerObjID, _ := store.PeerData.Insert(peerObj.RawMap)
-		store.Pmap[peerID] = peerObjID
-		go store.Listings.FlushSE()
-		store.Listings.Commit()
-		store.PeerData.Commit()
-
-		message := "Peer ID " + peerID + " manually added to voyager queue"
-		log.Debug(message)
-		fmt.Fprint(w, message)
-	})
-
-	// Deprecation Notice
-	//		Please remove this snippet down the lone
-	// http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
-	// 	w.Header().Set("Content-Type", "application/json")
-	// 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	// 	query := r.URL.Query().Get("query")
-	// 	filter := r.URL.Query().Get("filter")
-	// 	log.Verbose("[/search] Parameter [query=" + query + "]")
-
-	// 	results := store.Listings.Search(query)
-	// 	if filter != "" {
-	// 		results.Filter(filter)
-	// 	}
-
-	// 	fmt.Println("Result: ", results)
-	// 	resultsResponse, _ := results.ExportJSONArray()
-	// 	fmt.Fprint(w, string(resultsResponse))
-	// })
-
-	http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		defer r.Body.Close()
-		params := &models.AdvancedSearchQuery{}
-		json.NewDecoder(r.Body).Decode(params)
-
-		log.Verbose("[/search] Parameter [query=" + params.Query + "]")
-
-		results := store.Listings.Search(params.Query)
-
-		if len(params.Filters) != 0 {
-			for _, filter := range params.Filters {
-				log.Debug("Running filter: " + filter)
-				results.Filter(filter)
-			}
-		}
-
-		if params.Limit != 0 {
-			results.Limit(params.Start, params.Limit)
-		}
-
-		resultsResponse, _ := results.ExportJSONArray()
-		fmt.Fprint(w, string(resultsResponse))
-	})
-
-	http.HandleFunc("/djali/media", func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		image, err := os.Open("data/images/" + id)
-		if err != nil {
-			fmt.Fprint(w, `{"response": "Media not found"}`)
-		}
-
-		// Setup response headers
-		fileHeader := make([]byte, 512)
-
-		image.Read(fileHeader)
-		contentType := http.DetectContentType(fileHeader)
-		stat, _ := image.Stat()
-		size := strconv.FormatInt(stat.Size(), 10)
-
-		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Content-Length", size)
-		image.Seek(0, 0)
-		io.Copy(w, image)
-	})
-
-	log.Info("Serving at 0.0.0.0:8109")
-	http.ListenAndServe(":8109", nil)
 }
 
 func ensureDir(fileName string) {
