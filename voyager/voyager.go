@@ -67,6 +67,7 @@ func downloadFile(fileName string, log *servicelogger.LogPrinter) {
 	}
 
 	outFile, err := os.Create("data/images/" + fileName)
+	defer outFile.Close()
 	if err != nil {
 		panic(err)
 	}
