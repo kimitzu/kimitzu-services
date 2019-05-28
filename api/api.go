@@ -88,12 +88,16 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	 * 	}
 	 */
 	http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
-		//w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		//w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		// defer r.Body.Close()
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		defer r.Body.Close()
 		params := &models.AdvancedSearchQuery{}
-		json.NewDecoder(r.Body).Decode(params)
+		err := json.NewDecoder(r.Body).Decode(params)
+		if err != nil {
+			fmt.Fprint(w, fmt.Sprintf(`{"error": "Failed to decode body", "goerror": "%v"}`, err))
+			return
+		}
 
 		log.Verbose("[/search] Parameter [query=" + params.Query + "]")
 
