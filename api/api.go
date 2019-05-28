@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -91,9 +92,16 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		b, err := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
 		params := &models.AdvancedSearchQuery{}
-		err := json.NewDecoder(r.Body).Decode(params)
+		err = json.Unmarshal(b, &params)
 		if err != nil {
 			fmt.Fprint(w, fmt.Sprintf(`{"error": "Failed to decode body", "goerror": "%v"}`, err))
 			return
