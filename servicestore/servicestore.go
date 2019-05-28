@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path"
 	"strings"
 
 	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
@@ -85,8 +86,9 @@ func InitializeManagedStorage() *MainManagedStorage {
 	// 	}
 	// }
 
-	peerStorePath := "data/peers"
-	listingStorePath := "data/listings"
+	peerStorePath := path.Join("data", "peers")
+	listingStorePath := path.Join("data", "listings")
+	ji
 
 	peerStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "peers",
