@@ -88,7 +88,6 @@ func InitializeManagedStorage() *MainManagedStorage {
 
 	peerStorePath := path.Join("data", "peers")
 	listingStorePath := path.Join("data", "listings")
-	ji
 
 	peerStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "peers",
