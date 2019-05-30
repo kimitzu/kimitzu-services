@@ -48,6 +48,12 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 		fmt.Fprint(w, toret)
 	})
 
+	http.HandleFunc("/djali/peers", func(w http.ResponseWriter, r *http.Request) {
+		peers := store.PeerData.Search("")
+		data, _ := peers.ExportJSONArray()
+		fmt.Fprint(w, string(data))
+	})
+
 	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
 		peerID := r.URL.Query().Get("id")
 
@@ -64,6 +70,49 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 		message := "Peer ID " + peerID + " manually added to voyager queue"
 		log.Debug(message)
 		fmt.Fprint(w, message)
+	})
+
+	http.HandleFunc("/djali/peer/search", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		b, err := ioutil.ReadAll(r.Body)
+		defer r.Body.Close()
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		params := &models.AdvancedSearchQuery{}
+		err = json.Unmarshal(b, &params)
+		if err != nil {
+			fmt.Fprint(w, fmt.Sprintf(`{"error": "Failed to decode body", "goerror": "%v"}`, err))
+			return
+		}
+
+		log.Verbose("[/peer/search] Parameter [query=" + params.Query + "]")
+
+		results := store.PeerData.Search(params.Query)
+
+		if len(params.Filters) != 0 {
+			for _, filter := range params.Filters {
+				log.Debug("Running filter: " + filter)
+				results.Filter(filter)
+			}
+		}
+
+		if params.Limit != 0 {
+			results.Limit(params.Start, params.Limit)
+		}
+
+		if len(params.Transforms) != 0 {
+			d, _ := json.Marshal(params.Transforms)
+			results.Transform(string(d))
+		}
+
+		resultsResponse, _ := results.ExportJSONArray()
+		fmt.Fprint(w, string(resultsResponse))
 	})
 
 	// Kazaam Specs https://github.com/qntfy/kazaam
