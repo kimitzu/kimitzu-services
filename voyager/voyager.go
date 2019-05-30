@@ -21,9 +21,10 @@ var (
 	crawledPeers []string
 	pendingPeers chan string
 	retryPeers   map[string]int
+	log          *servicelogger.LogPrinter
 )
 
-func findPeers(peerlist chan<- string, log *servicelogger.LogPrinter) {
+func findPeers(peerlist chan<- string) {
 	for {
 		resp, err := grequests.Get("http://localhost:4002/ob/peers", nil)
 		if err != nil {
@@ -38,14 +39,16 @@ func findPeers(peerlist chan<- string, log *servicelogger.LogPrinter) {
 	}
 }
 
-func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, error) {
+func getPeerData(peer string) (string, string, error) {
 	log.Debug("Retrieving Peer Data: " + peer)
+
 	ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
 	profile, err := grequests.Get("http://localhost:4002/ob/profile/"+peer+"?usecache=false", ro)
 	if err != nil {
 		log.Error(fmt.Sprintln("Can't Retrieve peer data from "+peer, err))
 		return "", "", fmt.Errorf("Retrieve timeout")
 	}
+
 	listings, err := grequests.Get("http://localhost:4002/ob/listings/"+peer, ro)
 	if err != nil {
 		log.Error(fmt.Sprintln("Can't Retrive listing from peer "+peer, err))
@@ -55,7 +58,7 @@ func getPeerData(peer string, log *servicelogger.LogPrinter) (string, string, er
 	return profile.String(), listings.String(), nil
 }
 
-func downloadFile(fileName string, log *servicelogger.LogPrinter) {
+func downloadFile(fileName string) {
 	if doesFileExist("data/images/" + fileName) {
 		log.Verbose("File " + fileName + " already downloaded, skipping...")
 		return
@@ -75,8 +78,10 @@ func downloadFile(fileName string, log *servicelogger.LogPrinter) {
 	_, err = io.Copy(outFile, file.Body)
 }
 
-func DigestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) (*models.Peer, error) {
-	peerDat, listingDat, err := getPeerData(peer, log)
+// DigestPeer downloads the peer data and package it in a easy to use struct.
+//		Downloads the listings and stores them in the database as well.
+func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Peer, error) {
+	peerDat, listingDat, err := getPeerData(peer)
 	if err != nil {
 		val, exists := retryPeers[peer]
 		if !exists {
@@ -97,15 +102,9 @@ func DigestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 		listing.ParentPeer = peer
 		store.Listings.Insert(listing)
 
-		/**
-		 * Removed due to double-save bug.
-		 * @Von, please permanently remove to confirm.
-		 */
-		// store.Listings.Insert(listing, true)
-
-		downloadFile(listing.Thumbnail.Medium, log)
-		downloadFile(listing.Thumbnail.Small, log)
-		downloadFile(listing.Thumbnail.Tiny, log)
+		downloadFile(listing.Thumbnail.Medium)
+		downloadFile(listing.Thumbnail.Small)
+		downloadFile(listing.Thumbnail.Tiny)
 	}
 
 	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
@@ -113,19 +112,47 @@ func DigestPeer(peer string, log *servicelogger.LogPrinter, store *servicestore.
 	return &models.Peer{
 		ID:       peer,
 		RawMap:   peerJSON,
-		RawData:  peerDat,
-		Listings: peerListings}, nil
+		LastPing: time.Now().Unix()}, nil
+}
+
+func DigestService(peerStream chan string, store *servicestore.MainManagedStorage) {
+	for peer := range peerStream {
+		if val, exists := retryPeers[peer]; exists && val >= 5 {
+			continue
+		}
+		if _, exists := store.Pmap[peer]; !exists {
+			log.Debug("Digesting Peer: " + peer)
+			log.Debug("Found Peer: " + peer)
+			peerObj, err := DigestPeer(peer, store)
+			if err != nil {
+				log.Error(err)
+				store.Pmap[peer] = ""
+				continue
+			}
+			peerObjID, _ := store.PeerData.Insert(peerObj)
+			store.Pmap[peer] = peerObjID
+			go store.Listings.FlushSE()
+			store.Listings.Commit()
+			store.PeerData.Commit()
+		}
+	}
+	log.Error("Digesting stopped")
+}
+
+func PingPeers() {
+
 }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
-func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
+func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
+	log = logP
 	log.Info("Starting Voyager Service")
 	pendingPeers = make(chan string, 50)
 	retryPeers = make(map[string]int)
 
 	ensureDir("data/peers/.test")
 	ensureDir("data/images/.test")
-	go findPeers(pendingPeers, log)
+	go findPeers(pendingPeers)
 
 	peers := store.PeerData.Search("")
 
@@ -137,30 +164,29 @@ func RunVoyagerService(log *servicelogger.LogPrinter, store *servicestore.MainMa
 	}
 
 	// Digests found peers
+	go DigestService(pendingPeers, store)
+
+	// Occasionally ping the peers
 	go func() {
-		for peer := range pendingPeers {
-			log.Debug("Digesting Peer: " + peer)
-			if val, exists := retryPeers[peer]; exists && val >= 5 {
-				continue
-			}
-			if _, exists := store.Pmap[peer]; !exists {
-				log.Debug("Found Peer: " + peer)
-				peerObj, err := DigestPeer(peer, log, store)
-				if err != nil {
-					log.Error(err)
-					store.Pmap[peer] = ""
-					continue
+		for {
+			peers := store.PeerData.Search("")
+			for _, peerd := range peers.Documents {
+				peer := models.Peer{}
+				peerd.Export(&peer)
+				log.Verbose(fmt.Sprintf("Pinging %v", peer.ID))
+
+				ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
+				isOnline, _ := grequests.Get("http://localhost:4002/ob/peerinfo/"+peer.ID+"?usecache=false", ro)
+
+				result := make(map[string]string)
+				isOnline.JSON(&result)
+				if result["result"] == "online" {
+					peer.LastPing = time.Now().Unix()
+					store.PeerData.Update(peerd.ID, peer)
 				}
-				peerObjID, _ := store.PeerData.Insert(peerObj.RawMap)
-				store.Pmap[peer] = peerObjID
-				go store.Listings.FlushSE()
-				store.Listings.Commit()
-				store.PeerData.Commit()
-			} else {
-				log.Debug("Skipping Peer[Exists]: " + peer)
 			}
+			time.Sleep(time.Minute * 30)
 		}
-		log.Error("Digesting stopped")
 	}()
 
 }

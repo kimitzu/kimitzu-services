@@ -92,7 +92,7 @@ func InitializeManagedStorage() *MainManagedStorage {
 	peerStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "peers",
 		Path:       peerStorePath,
-		IndexPaths: []string{"$.name", "$.shortDescription"},
+		IndexPaths: []string{"$.profile.name", "$.profile.shortDescription"},
 	}
 
 	listingStoreConfig := &gomenasai.GomenasaiConfig{

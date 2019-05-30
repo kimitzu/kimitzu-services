@@ -2,9 +2,8 @@ package models
 
 type Peer struct {
 	ID       string                 `json:"peerID"`
-	RawMap   map[string]interface{} `json:"rawMap"`
-	RawData  string                 `json:"rawData"`
-	Listings []*Listing             `json:"listing"`
+	RawMap   map[string]interface{} `json:"profile"`
+	LastPing int64                  `json:"lastPing"`
 }
 
 type Listing struct {

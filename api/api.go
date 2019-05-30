@@ -51,12 +51,9 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
 		peerID := r.URL.Query().Get("id")
 
-		peerObj, err := voyager.DigestPeer(peerID, log, store)
+		peerObj, err := voyager.DigestPeer(peerID, store)
 		if err != nil {
 			fmt.Fprint(w, `{"response": "Error adding peer to queue"}`)
-		}
-		for _, listing := range peerObj.Listings {
-			store.Listings.Insert(listing)
 		}
 		peerObjID, _ := store.PeerData.Insert(peerObj.RawMap)
 		store.Pmap[peerID] = peerObjID
