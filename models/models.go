@@ -57,4 +57,5 @@ type AdvancedSearchQuery struct {
 	Limit      int           `json:"limit"`
 	Start      int           `json:"start"`
 	Transforms []interface{} `json:"transforms"`
+	Sort       string        `json:"sort"`
 }

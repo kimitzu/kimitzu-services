@@ -106,6 +106,10 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 			results.Limit(params.Start, params.Limit)
 		}
 
+		if params.Sort != "" {
+			results.Sort(params.Sort)
+		}
+
 		if len(params.Transforms) != 0 {
 			d, _ := json.Marshal(params.Transforms)
 			results.Transform(string(d))
