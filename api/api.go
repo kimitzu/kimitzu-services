@@ -21,6 +21,8 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 
 	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		result := store.Listings.Search("")
 		jsn, err := result.ExportJSONArray()
 		if err == nil {
@@ -32,6 +34,8 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 
 	http.HandleFunc("/djali/peer/get", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		qpeerid := r.URL.Query().Get("id")
 		docid, exists := store.Pmap[qpeerid]
 		toret := ""
@@ -49,12 +53,16 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	})
 
 	http.HandleFunc("/djali/peers", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		peers := store.PeerData.Search("")
 		data, _ := peers.ExportJSONArray()
 		fmt.Fprint(w, string(data))
 	})
 
 	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		peerID := r.URL.Query().Get("id")
 
 		peerObj, err := voyager.DigestPeer(peerID, store)
@@ -186,6 +194,8 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	})
 
 	http.HandleFunc("/djali/media", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		id := r.URL.Query().Get("id")
 		image, err := os.Open("data/images/" + id)
 		if err != nil {
