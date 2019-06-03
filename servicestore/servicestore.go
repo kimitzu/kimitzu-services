@@ -60,6 +60,9 @@ func LoadCustomEngine() gval.Language {
 			}
 			return location.Distance(sourceLat, sourceLng, target[0], target[1]) <= distanceMeters
 		}),
+		gval.Function("compareString", func(x, y string) bool {
+			return x < y
+		}),
 	)
 	return language
 }
