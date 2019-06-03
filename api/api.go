@@ -16,12 +16,18 @@ import (
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
 )
 
+func setupResponse(w *http.ResponseWriter, req *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	(*w).Header().Set("Content-Type", "application/json")
+}
+
 func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
 	log.Info("Starting HTTP Service")
 
 	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setupResponse(&w, r)
 
 		result := store.Listings.Search("")
 		jsn, err := result.ExportJSONArray()
@@ -53,7 +59,7 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	})
 
 	http.HandleFunc("/djali/peers", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setupResponse(&w, r)
 
 		peers := store.PeerData.Search("")
 		data, _ := peers.ExportJSONArray()
@@ -61,7 +67,7 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	})
 
 	http.HandleFunc("/djali/peer/add", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setupResponse(&w, r)
 
 		peerID := r.URL.Query().Get("id")
 
@@ -81,9 +87,7 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	})
 
 	http.HandleFunc("/djali/peer/search", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		setupResponse(&w, r)
 
 		b, err := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
@@ -147,9 +151,7 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	 * 	}
 	 */
 	http.HandleFunc("/djali/search", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		setupResponse(&w, r)
 
 		b, err := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
@@ -194,7 +196,7 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 	})
 
 	http.HandleFunc("/djali/media", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		setupResponse(&w, r)
 
 		id := r.URL.Query().Get("id")
 		image, err := os.Open("data/images/" + id)
