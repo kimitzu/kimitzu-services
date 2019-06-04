@@ -16,6 +16,13 @@ import (
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
 )
 
+type APIListResult struct {
+	Count     int           `json:"count"`
+	Limit     int           `json:"limit"`
+	NextStart int           `json:"nextStart"`
+	Data      []interface{} `json:"data"`
+}
+
 func setupResponse(w *http.ResponseWriter, req *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -114,12 +121,12 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 			}
 		}
 
-		if params.Limit != 0 {
-			results.Limit(params.Start, params.Limit)
-		}
-
 		if params.Sort != "" {
 			results.Sort(params.Sort)
+		}
+
+		if params.Limit != 0 {
+			results.Limit(params.Start, params.Limit)
 		}
 
 		if len(params.Transforms) != 0 {
@@ -127,8 +134,26 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 			results.Transform(string(d))
 		}
 
-		resultsResponse, _ := results.ExportJSONArray()
-		fmt.Fprint(w, string(resultsResponse))
+		nextStart := params.Start + params.Limit
+		if nextStart >= results.Count {
+			nextStart = -1
+		}
+
+		arr := []interface{}{}
+		for _, doc := range results.Documents {
+			i := new(interface{})
+			json.Unmarshal(doc.Content, &i)
+			arr = append(arr, i)
+		}
+
+		listreturn := APIListResult{
+			Count:     results.Count,
+			Limit:     params.Limit,
+			NextStart: nextStart,
+			Data:      arr,
+		}
+		retStr, _ := json.Marshal(listreturn)
+		fmt.Fprint(w, string(retStr))
 	})
 
 	// Kazaam Specs https://github.com/qntfy/kazaam
@@ -191,8 +216,26 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 			results.Transform(string(d))
 		}
 
-		resultsResponse, _ := results.ExportJSONArray()
-		fmt.Fprint(w, string(resultsResponse))
+		nextStart := params.Start + params.Limit
+		if nextStart >= results.Count {
+			nextStart = -1
+		}
+
+		arr := []interface{}{}
+		for _, doc := range results.Documents {
+			i := new(interface{})
+			json.Unmarshal(doc.Content, &i)
+			arr = append(arr, i)
+		}
+
+		listreturn := APIListResult{
+			Count:     results.Count,
+			Limit:     params.Limit,
+			NextStart: nextStart,
+			Data:      arr,
+		}
+		retStr, _ := json.Marshal(listreturn)
+		fmt.Fprint(w, string(retStr))
 	})
 
 	http.HandleFunc("/djali/media", func(w http.ResponseWriter, r *http.Request) {
