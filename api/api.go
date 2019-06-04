@@ -203,12 +203,12 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 			}
 		}
 
-		if params.Limit != 0 {
-			results.Limit(params.Start, params.Limit)
-		}
-
 		if params.Sort != "" {
 			results.Sort(params.Sort)
+		}
+
+		if params.Limit != 0 {
+			results.Limit(params.Start, params.Limit)
 		}
 
 		if len(params.Transforms) != 0 {
