@@ -156,6 +156,20 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 		fmt.Fprint(w, string(retStr))
 	})
 
+	http.HandleFunc("/djali/listing", func(w http.ResponseWriter, r *http.Request) {
+		setupResponse(&w, r)
+
+		hash := r.URL.Query().Get("hash")
+		results := store.Listings.Search(hash)
+		if len(results.Documents) == 0 {
+			fmt.Fprint(w, "{\"error\": \"No results\"}")
+			return
+		}
+		listing, _ := json.Marshal(results.Documents[0].ExportI())
+		fmt.Fprintf(w, string(listing))
+		return
+	})
+
 	// Kazaam Specs https://github.com/qntfy/kazaam
 	/**
 	 * {
