@@ -30,6 +30,7 @@ type Listing struct {
 	Thumbnail     Thumbnail `json:"thumbnail"`
 	PeerSlug      string    `json:"peerSlug"`
 	ParentPeer    string    `json:"parentPeer"`
+	Location      Location  `json:"location"`
 }
 
 type IPFSListing struct {
@@ -57,6 +58,7 @@ type ListingClass struct {
 	Thumbnail     Thumbnail `json:"thumbnail"`
 	PeerSlug      string    `json:"peerSlug"`
 	ParentPeer    string    `json:"parentPeer"`
+	Location      Location  `json:"location"`
 }
 
 type Item struct {
