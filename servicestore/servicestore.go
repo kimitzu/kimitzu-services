@@ -101,7 +101,7 @@ func InitializeManagedStorage() *MainManagedStorage {
 	listingStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "listings",
 		Path:       listingStorePath,
-		IndexPaths: []string{"$.description", "$.title"},
+		IndexPaths: []string{"$.listing.item.description", "$.listing.item.title"},
 	}
 
 	if gomenasai.Exists(peerStorePath) {

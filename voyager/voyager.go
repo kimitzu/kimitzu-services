@@ -60,7 +60,7 @@ func getPeerData(peer string) (string, string, error) {
 
 func downloadFile(fileName string) {
 	if doesFileExist("data/images/" + fileName) {
-		log.Verbose("File " + fileName + " already downloaded, skipping...")
+		// log.Verbose("File " + fileName + " already downloaded, skipping...")
 		return
 	}
 
@@ -100,8 +100,17 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
-		store.Listings.Insert(listing)
+		ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
+		listingData, err := grequests.Get("http://localhost:4002/ob/listing/"+peer+"/"+listing.Slug, ro)
 
+		if err != nil {
+			log.Verbose(fmt.Sprintf("Failed to retrieve IPFS data of %v", listing.PeerSlug))
+			continue
+		}
+
+		json.Unmarshal([]byte(listingData.String()), &listing)
+
+		store.Listings.Insert(listing)
 		downloadFile(listing.Thumbnail.Medium)
 		downloadFile(listing.Thumbnail.Small)
 		downloadFile(listing.Thumbnail.Tiny)
