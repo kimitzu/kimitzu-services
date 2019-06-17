@@ -91,6 +91,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		}
 		return nil, fmt.Errorf(fmt.Sprint("["+strconv.Itoa(val)+"] Error Retrieving Peer ", err))
 	}
+
 	peerJSON := make(map[string]interface{})
 	peerListings := []*models.Listing{}
 
@@ -107,10 +108,15 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 			log.Verbose(fmt.Sprintf("Failed to retrieve IPFS data of %v", listing.PeerSlug))
 			continue
 		}
+		ipfsListing := models.IPFSListing{}
 
-		json.Unmarshal([]byte(listingData.String()), &listing)
+		json.Unmarshal([]byte(listingData.String()), &ipfsListing)
 
-		store.Listings.Insert(listing)
+		classListing := ipfsListing.Listing
+		oldListingDat, _ := json.Marshal(listing)
+		json.Unmarshal(oldListingDat, &classListing)
+
+		store.Listings.Insert(classListing)
 		downloadFile(listing.Thumbnail.Medium)
 		downloadFile(listing.Thumbnail.Small)
 		downloadFile(listing.Thumbnail.Tiny)
