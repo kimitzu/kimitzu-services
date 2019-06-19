@@ -24,9 +24,31 @@ var (
 	log          *servicelogger.LogPrinter
 )
 
+var ro = &grequests.RequestOptions{RequestTimeout: 70 * time.Second}
+var maxClosest = make(chan int, 5)
+
+func findClosestPeers(peer string, peerlist chan<- string) {
+	// This makes sure that the findClosestPeers doesn't overfill the requests
+	// by limiting it to 5 concurrent calls.
+	maxClosest <- 1
+	defer func() {
+		<-maxClosest
+	}()
+	log.Debug(fmt.Sprintf("Retrieving closest peers for %v", peer))
+	resp, err := grequests.Get("http://localhost:4002/ob/closestpeers/"+peer, ro)
+	if err != nil {
+		log.Error("Peer resolve timeout for " + peer)
+	}
+	listJSON := []string{}
+	json.Unmarshal([]byte(resp.String()), &listJSON)
+	for _, peer := range listJSON {
+		peerlist <- peer
+	}
+}
+
 func findPeers(peerlist chan<- string) {
 	for {
-		resp, err := grequests.Get("http://localhost:4002/ob/peers", nil)
+		resp, err := grequests.Get("http://localhost:4002/ob/peers", ro)
 		if err != nil {
 			log.Error("Can't Load OpenBazaar Peers")
 		}
@@ -34,6 +56,7 @@ func findPeers(peerlist chan<- string) {
 		json.Unmarshal([]byte(resp.String()), &listJSON)
 		for _, peer := range listJSON {
 			peerlist <- peer
+			go findClosestPeers(peer, peerlist)
 		}
 		time.Sleep(time.Second * 5)
 	}
@@ -42,7 +65,6 @@ func findPeers(peerlist chan<- string) {
 func getPeerData(peer string) (string, string, error) {
 	log.Debug("Retrieving Peer Data: " + peer)
 
-	ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
 	profile, err := grequests.Get("http://localhost:4002/ob/profile/"+peer+"?usecache=false", ro)
 	if err != nil {
 		log.Error(fmt.Sprintln("Can't Retrieve peer data from "+peer, err))
@@ -98,6 +120,12 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 	json.Unmarshal([]byte(listingDat), &peerListings)
 	json.Unmarshal([]byte(peerDat), &peerJSON)
 
+	if peerJSON["success"] != nil {
+		if !peerJSON["success"].(bool) {
+			return nil, fmt.Errorf(peerJSON["reason"].(string))
+		}
+	}
+
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
@@ -112,11 +140,23 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 
 		json.Unmarshal([]byte(listingData.String()), &ipfsListing)
 
+		// Shuffle the old listing model into the newer listing model
+		// by unmarshalling the data from the old model to the new one
+		// this is because the /ob/listing data needs to coalesce with
+		// the old model. It's hacky I know, but GO doesn't really have
+		// an equivalent to Python's dict.update()
 		classListing := ipfsListing.Listing
 		oldListingDat, _ := json.Marshal(listing)
 		json.Unmarshal(oldListingDat, &classListing)
 
-		store.Listings.Insert(classListing)
+		// Check if the listing hash already exists and update it instead of inserting a new one.
+		existing := store.Listings.Search(classListing.Hash)
+		if existing.Count == 1 {
+			store.Listings.Update(existing.Documents[0].ID, classListing)
+		} else {
+			store.Listings.Insert(classListing)
+		}
+
 		downloadFile(listing.Thumbnail.Medium)
 		downloadFile(listing.Thumbnail.Small)
 		downloadFile(listing.Thumbnail.Tiny)
@@ -149,13 +189,19 @@ func DigestService(peerStream chan string, store *servicestore.MainManagedStorag
 			go store.Listings.FlushSE()
 			store.Listings.Commit()
 			store.PeerData.Commit()
+		} else {
+			log.Debug("Peer alreaday exists: " + peer)
 		}
 	}
 	log.Error("Digesting stopped")
 }
 
-func PingPeers() {
+func IsPeerOnline(peerid string) bool {
+	isOnline, _ := grequests.Get("http://localhost:4002/ob/peerinfo/"+peerid+"?usecache=false", ro)
 
+	result := make(map[string]string)
+	isOnline.JSON(&result)
+	return result["result"] == "online"
 }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
@@ -189,15 +235,10 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 				peer := models.Peer{}
 				peerd.Export(&peer)
 				log.Verbose(fmt.Sprintf("Pinging %v", peer.ID))
-
-				ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
-				isOnline, _ := grequests.Get("http://localhost:4002/ob/peerinfo/"+peer.ID+"?usecache=false", ro)
-
-				result := make(map[string]string)
-				isOnline.JSON(&result)
-				if result["result"] == "online" {
+				if IsPeerOnline(peer.ID) {
 					peer.LastPing = time.Now().Unix()
 					store.PeerData.Update(peerd.ID, peer)
+					DigestPeer(peer.ID, store)
 				}
 			}
 			time.Sleep(time.Minute * 30)
