@@ -45,6 +45,14 @@ func LoadCustomEngine() gval.Language {
 		gval.Function("contains", func(fullstr string, substr string) bool {
 			return strings.Contains(fullstr, substr)
 		}),
+		gval.Function("containsInArr", func(arr []string, search string) bool {
+			for _, val := range arr {
+				if val == search {
+					return true
+				}
+			}
+			return false
+		}),
 		gval.Function("zipWithin", func(sourceZip string, sourceCountry string, targetZip string, targetCountry string, distanceMeters float64) bool {
 			source := locMap[sourceCountry][sourceZip]
 			target := locMap[targetCountry][targetZip]
