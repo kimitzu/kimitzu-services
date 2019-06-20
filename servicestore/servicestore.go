@@ -47,8 +47,7 @@ func LoadCustomEngine() gval.Language {
 		}),
 		gval.Function("containsInArr", func(arr []string, search string) bool {
 			for _, val := range arr {
-				val = val.(string)
-				if val == search {
+				if val.(string) == search {
 					return true
 				}
 			}
@@ -140,7 +139,7 @@ func InitializeManagedStorage() *MainManagedStorage {
 		}
 		store.Listings = listing
 	}
-	
+
 	store.Listings.OverrideEvalEngine(LoadCustomEngine())
 
 	return &store
