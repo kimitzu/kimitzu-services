@@ -47,6 +47,7 @@ func LoadCustomEngine() gval.Language {
 		}),
 		gval.Function("containsInArr", func(arr []string, search string) bool {
 			for _, val := range arr {
+				val = val.(string)
 				if val == search {
 					return true
 				}
