@@ -45,7 +45,7 @@ func LoadCustomEngine() gval.Language {
 		gval.Function("contains", func(fullstr string, substr string) bool {
 			return strings.Contains(fullstr, substr)
 		}),
-		gval.Function("containsInArr", func(arr []string, search string) bool {
+		gval.Function("containsInArr", func(arr []interface{}, search string) bool {
 			for _, val := range arr {
 				if val.(string) == search {
 					return true
