@@ -138,8 +138,8 @@ func InitializeManagedStorage() *MainManagedStorage {
 			panic(fmt.Errorf("Failed to create listing databse: %v", err))
 		}
 		store.Listings = listing
-		store.Listings.OverrideEvalEngine(LoadCustomEngine())
 	}
+	store.Listings.OverrideEvalEngine(LoadCustomEngine())
 
 	return &store
 }
