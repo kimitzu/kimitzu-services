@@ -139,6 +139,7 @@ func InitializeManagedStorage() *MainManagedStorage {
 		}
 		store.Listings = listing
 	}
+	
 	store.Listings.OverrideEvalEngine(LoadCustomEngine())
 
 	return &store
