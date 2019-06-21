@@ -68,6 +68,9 @@ func LoadCustomEngine() gval.Language {
 			}
 			return location.Distance(sourceLat, sourceLng, target[0], target[1]) <= distanceMeters
 		}),
+		gval.Function("geoWithin", func(sourceLat float64, sourceLng float64, targetLat float64, targetLng float64, distanceMeters float64) bool {
+			return location.Distance(sourceLat, sourceLng, targetLat, targetLng) <= distanceMeters
+		}),
 		gval.Function("compareString", func(x, y string) bool {
 			return x < y
 		}),
