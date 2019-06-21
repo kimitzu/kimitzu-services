@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 
 	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
@@ -68,8 +69,15 @@ func LoadCustomEngine() gval.Language {
 			}
 			return location.Distance(sourceLat, sourceLng, target[0], target[1]) <= distanceMeters
 		}),
-		gval.Function("geoWithin", func(sourceLat float64, sourceLng float64, targetLat float64, targetLng float64, distanceMeters float64) bool {
-			return location.Distance(sourceLat, sourceLng, targetLat, targetLng) <= distanceMeters
+		gval.Function("geoWithin", func(sourceLat, sourceLng, targetLat, targetLng string, distanceMeters float64) bool {
+			if sourceLat == "" || sourceLng == "" || targetLat == "" || targetLng == "" {
+				return false
+			}
+			sourceLat64, _ := strconv.ParseFloat(sourceLat, 64)
+			sourceLng64, _ := strconv.ParseFloat(sourceLng, 64)
+			targetLat64, _ := strconv.ParseFloat(targetLat, 64)
+			targetLng64, _ := strconv.ParseFloat(targetLng, 64)
+			return location.Distance(sourceLat64, sourceLng64, targetLat64, targetLng64) <= distanceMeters
 		}),
 		gval.Function("compareString", func(x, y string) bool {
 			return x < y
