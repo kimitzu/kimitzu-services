@@ -257,24 +257,39 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 
 		id := r.URL.Query().Get("id")
 		image, err := os.Open("data/images/" + id)
+
 		if err != nil {
-			fmt.Fprint(w, `{"response": "Media not found"}`)
+			// If media is not found in data/images, fallback to ipfs
+			resp, err2 := http.Get("http://localhost:4002/ob/images/" + id)
+			if err2 != nil {
+				fmt.Fprint(w, `{"response": "Media not found"}`)
+				return
+			}
+			w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+			w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
+			io.Copy(w, resp.Body)
+			resp.Body.Close()
+			return
 		}
 
-		// Setup response headers
-		fileHeader := make([]byte, 512)
-
-		image.Read(fileHeader)
-		contentType := http.DetectContentType(fileHeader)
-		stat, _ := image.Stat()
-		size := strconv.FormatInt(stat.Size(), 10)
-
-		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Content-Length", size)
-		image.Seek(0, 0)
-		io.Copy(w, image)
+		fileResponder(image, w)
 	})
 
 	log.Info("Serving at 0.0.0.0:8109")
 	http.ListenAndServe(":8109", nil)
+}
+
+func fileResponder(file *os.File, w http.ResponseWriter) {
+	// Setup response headers
+	fileHeader := make([]byte, 512)
+
+	file.Read(fileHeader)
+	contentType := http.DetectContentType(fileHeader)
+	stat, _ := file.Stat()
+	size := strconv.FormatInt(stat.Size(), 10)
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", size)
+	file.Seek(0, 0)
+	io.Copy(w, file)
 }
