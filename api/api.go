@@ -78,19 +78,27 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 
 		peerID := r.URL.Query().Get("id")
 
+		message := "success"
 		peerObj, err := voyager.DigestPeer(peerID, store)
 		if err != nil {
-			fmt.Fprint(w, `{"response": "Error adding peer to queue"}`)
+			log.Error(err)
+			store.Pmap[peerID] = ""
+			message = "failed"
 		}
-		peerObjID, _ := store.PeerData.Insert(peerObj.RawMap)
-		store.Pmap[peerID] = peerObjID
-		go store.Listings.FlushSE()
-		store.Listings.Commit()
-		store.PeerData.Commit()
+		peerObjID, err := store.PeerData.Insert(peerObj)
+		if err != nil {
+			// panic(err)
+			message = "failed"
+		}
 
-		message := "Peer ID " + peerID + " manually added to voyager queue"
-		log.Debug(message)
-		fmt.Fprint(w, message)
+		if message != "failed" {
+			store.Pmap[peerID] = peerObjID
+			go store.Listings.FlushSE()
+			store.Listings.Commit()
+			store.PeerData.Commit()
+		}
+
+		fmt.Fprint(w, "{\"result\": \""+message+"\"}")
 	})
 
 	http.HandleFunc("/djali/peer/search", func(w http.ResponseWriter, r *http.Request) {
