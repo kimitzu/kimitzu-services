@@ -19,7 +19,7 @@ import (
 
 var (
 	crawledPeers []string
-	pendingPeers chan string
+	peerStream   chan string
 	retryPeers   map[string]int
 	log          *servicelogger.LogPrinter
 )
@@ -51,6 +51,7 @@ func findPeers(peerlist chan<- string) {
 		resp, err := grequests.Get("http://localhost:4002/ob/peers", ro)
 		if err != nil {
 			log.Error("Can't Load OpenBazaar Peers")
+			continue
 		}
 		listJSON := []string{}
 		json.Unmarshal([]byte(resp.String()), &listJSON)
@@ -146,7 +147,10 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		// the old model. It's hacky I know, but GO doesn't really have
 		// an equivalent to Python's dict.update()
 		classListing := ipfsListing.Listing
-		oldListingDat, _ := json.Marshal(listing)
+		oldListingDat, err := json.Marshal(listing)
+		if err != nil {
+			panic(err)
+		}
 		json.Unmarshal(oldListingDat, &classListing)
 
 		// Check if the listing hash already exists and update it instead of inserting a new one.
@@ -172,6 +176,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 
 func DigestService(peerStream chan string, store *servicestore.MainManagedStorage) {
 	for peer := range peerStream {
+		log.Debug("Recieved peer...")
 		if val, exists := retryPeers[peer]; exists && val >= 5 {
 			continue
 		}
@@ -184,7 +189,10 @@ func DigestService(peerStream chan string, store *servicestore.MainManagedStorag
 				store.Pmap[peer] = ""
 				continue
 			}
-			peerObjID, _ := store.PeerData.Insert(peerObj)
+			peerObjID, err := store.PeerData.Insert(peerObj)
+			if err != nil {
+				panic(err)
+			}
 			store.Pmap[peer] = peerObjID
 			go store.Listings.FlushSE()
 			store.Listings.Commit()
@@ -192,13 +200,16 @@ func DigestService(peerStream chan string, store *servicestore.MainManagedStorag
 		} else {
 			log.Debug("Peer alreaday exists: " + peer)
 		}
+		log.Debug("Getting peer from peerStream...")
 	}
 	log.Error("Digesting stopped")
 }
 
 func IsPeerOnline(peerid string) bool {
-	isOnline, _ := grequests.Get("http://localhost:4002/ob/peerinfo/"+peerid+"?usecache=false", ro)
-
+	isOnline, err := grequests.Get("http://localhost:4002/ob/peerinfo/"+peerid+"?usecache=false", ro)
+	if err != nil {
+		return false
+	}
 	result := make(map[string]string)
 	isOnline.JSON(&result)
 	return result["result"] == "online"
@@ -208,12 +219,12 @@ func IsPeerOnline(peerid string) bool {
 func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
 	log = logP
 	log.Info("Starting Voyager Service")
-	pendingPeers = make(chan string, 50)
+	peerStream = make(chan string, 1000)
 	retryPeers = make(map[string]int)
 
 	ensureDir("data/peers/.test")
 	ensureDir("data/images/.test")
-	go findPeers(pendingPeers)
+	go findPeers(peerStream)
 
 	peers := store.PeerData.Search("")
 
@@ -225,7 +236,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 	}
 
 	// Digests found peers
-	go DigestService(pendingPeers, store)
+	go DigestService(peerStream, store)
 
 	// Occasionally ping the peers
 	go func() {
