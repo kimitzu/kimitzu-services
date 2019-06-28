@@ -174,6 +174,20 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		LastPing: time.Now().Unix()}, nil
 }
 
+func getSelfPeerID() string {
+	rdata, err := grequests.Get("http://localhost:4002/ob/profile/", ro)
+	if err != nil {
+		return ""
+	}
+	data := make(map[string]interface{})
+	json.Unmarshal(rdata.Bytes(), &data)
+	_, nonexist := data["success"]
+	if !nonexist {
+		return data["peerID"].(string)
+	}
+	return ""
+}
+
 func DigestService(peerStream chan string, store *servicestore.MainManagedStorage) {
 	for peer := range peerStream {
 		log.Debug("Recieved peer...")
@@ -221,6 +235,11 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 	log.Info("Starting Voyager Service")
 	peerStream = make(chan string, 1000)
 	retryPeers = make(map[string]int)
+
+	myPeerID := getSelfPeerID()
+	if myPeerID != "" {
+		peerStream <- myPeerID
+	}
 
 	ensureDir("data/peers/.test")
 	ensureDir("data/images/.test")
