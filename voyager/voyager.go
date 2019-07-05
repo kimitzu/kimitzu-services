@@ -30,7 +30,6 @@ var maxClosest = make(chan int, 5)
 func findClosestPeers(peer string, peerlist chan<- string) {
 	// This makes sure that the findClosestPeers doesn't overfill the requests
 	// by limiting it to 5 concurrent calls.
-	maxClosest <- 1
 	defer func() {
 		<-maxClosest
 	}()
@@ -57,6 +56,7 @@ func findPeers(peerlist chan<- string) {
 		json.Unmarshal([]byte(resp.String()), &listJSON)
 		for _, peer := range listJSON {
 			peerlist <- peer
+			maxClosest <- 1
 			go findClosestPeers(peer, peerlist)
 		}
 		time.Sleep(time.Second * 5)
