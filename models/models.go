@@ -97,13 +97,15 @@ type Skus struct {
 }
 
 type Metadata struct {
-	Version            int64    `json:"version"`
-	ContractType       string   `json:"contractType"`
-	Format             string   `json:"format"`
-	Expiry             string   `json:"expiry"`
-	AcceptedCurrencies []string `json:"acceptedCurrencies"`
-	PricingCurrency    string   `json:"pricingCurrency"`
-	EscrowTimeoutHours int64    `json:"escrowTimeoutHours"`
+	Version               int64    `json:"version"`
+	ContractType          string   `json:"contractType"`
+	Format                string   `json:"format"`
+	Expiry                string   `json:"expiry"`
+	AcceptedCurrencies    []string `json:"acceptedCurrencies"`
+	PricingCurrency       string   `json:"pricingCurrency"`
+	EscrowTimeoutHours    int64    `json:"escrowTimeoutHours"`
+	ServiceRateMethod     string   `json:"serviceRateMethod"`
+	ServiceClassification string   `json:"serviceClassification"`
 }
 
 type ShippingOption struct {
