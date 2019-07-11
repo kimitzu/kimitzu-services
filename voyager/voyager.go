@@ -30,9 +30,6 @@ var maxClosest = make(chan int, 5)
 func findClosestPeers(peer string, peerlist chan<- string) {
 	// This makes sure that the findClosestPeers doesn't overfill the requests
 	// by limiting it to 5 concurrent calls.
-	defer func() {
-		<-maxClosest
-	}()
 	log.Debug(fmt.Sprintf("Retrieving closest peers for %v", peer))
 	resp, err := grequests.Get("http://localhost:4002/ob/closestpeers/"+peer, ro)
 	if err != nil {
@@ -42,6 +39,13 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 	json.Unmarshal([]byte(resp.String()), &listJSON)
 	for _, peer := range listJSON {
 		peerlist <- peer
+	}
+
+	select {
+	case <-maxClosest:
+		return
+	case <-time.After(time.Second * 10):
+		return
 	}
 }
 
