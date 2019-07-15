@@ -57,8 +57,9 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 			doc, err := store.PeerData.Get(docid)
 			if err != nil {
 				toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
+			} else {
+				toret = string(doc.Content)
 			}
-			toret = string(doc.Content)
 		} else {
 			toret = `{"error": "notFound"}`
 		}
