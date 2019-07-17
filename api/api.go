@@ -52,6 +52,7 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 		qpeerid := r.URL.Query().Get("id")
 		docid, exists := store.Pmap[qpeerid]
 		toret := ""
+		message := ""
 
 		if exists {
 			doc, err := store.PeerData.Get(docid)
@@ -61,7 +62,35 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 				toret = string(doc.Content)
 			}
 		} else {
-			toret = `{"error": "notFound"}`
+			log.Error("Peer not found, attempting to digest...")
+
+			peerObj, err := voyager.DigestPeer(qpeerid, store)
+			if err != nil {
+				log.Error(err)
+				store.Pmap[qpeerid] = ""
+				message = "failed"
+			}
+			peerObjID, err := store.PeerData.Insert(peerObj)
+			if err != nil {
+				log.Error(err)
+				message = "failed"
+				toret = `{"error": "` + message + `"}`
+			}
+
+			if message != "failed" {
+				store.Pmap[qpeerid] = peerObjID
+				go store.Listings.FlushSE()
+				store.Listings.Commit()
+				store.PeerData.Commit()
+				peerObjJSON, err := json.Marshal(peerObj)
+				if err != nil {
+					toret = `{"error": "` + err.Error() + `"}`
+				}
+				toret = string(peerObjJSON)
+			} else {
+				toret = `{"error": "Not found and failed to digest"}`
+			}
+
 		}
 		fmt.Fprint(w, toret)
 	})
