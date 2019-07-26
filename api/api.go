@@ -50,11 +50,12 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		qpeerid := r.URL.Query().Get("id")
+		force := r.URL.Query().Get("force")
 		docid, exists := store.Pmap[qpeerid]
 		toret := ""
 		message := ""
 
-		if exists {
+		if exists && force != "true" {
 			doc, err := store.PeerData.Get(docid)
 			if err != nil {
 				toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
@@ -62,7 +63,7 @@ func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManag
 				toret = string(doc.Content)
 			}
 		} else {
-			log.Error("Peer not found, attempting to digest...")
+			log.Error("Peer not found or forced, attempting to digest...")
 
 			peerObj, err := voyager.DigestPeer(qpeerid, store)
 			if err != nil {
