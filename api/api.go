@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 
+	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
+
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
 	"gitlab.com/kingsland-team-ph/djali/djali-services.git/voyager"
@@ -32,6 +34,9 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) {
 
 func RunHTTPService(log *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
 	log.Info("Starting HTTP Service")
+
+	http.HandleFunc("/djali/location/query", location.HTTPLocationQueryHandler)
+	http.HandleFunc("/djali/location/codesfrom", location.HTTPLocationCodesfromHandler)
 
 	http.HandleFunc("/djali/peers/listings", func(w http.ResponseWriter, r *http.Request) {
 		setupResponse(&w, r)

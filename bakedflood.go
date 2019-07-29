@@ -49,7 +49,7 @@ func main() {
 	time.Sleep(time.Second * 10)
 
 	go voyager.RunVoyagerService(srvLog.Spawn("voyager"), store)
-	go location.RunLocationService(srvLog.Spawn("location"))
+	location.RunLocationService(srvLog.Spawn("location"))
 	api.RunHTTPService(srvLog.Spawn("api"), store)
 
 }
