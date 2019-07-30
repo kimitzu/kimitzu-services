@@ -22,6 +22,7 @@ var (
 	peerStream   chan string
 	retryPeers   map[string]int
 	log          *servicelogger.LogPrinter
+	store        *servicestore.MainManagedStorage
 )
 
 var ro = &grequests.RequestOptions{RequestTimeout: 70 * time.Second}
@@ -105,6 +106,16 @@ func downloadFile(fileName string) {
 	_, err = io.Copy(outFile, file.Body)
 }
 
+func clearListings(peer string) error {
+	for _, doc := range store.Listings.Search(peer).Documents {
+		err := store.Listings.Delete(doc.ID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // DigestPeer downloads the peer data and package it in a easy to use struct.
 //		Downloads the listings and stores them in the database as well.
 func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Peer, error) {
@@ -131,6 +142,8 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		}
 	}
 
+	// Removes all of the old listings from this particular peer
+	//clearListings(peer)
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
@@ -138,7 +151,12 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		listingData, err := grequests.Get("http://localhost:4002/ob/listing/"+peer+"/"+listing.Slug, ro)
 
 		if err != nil {
-			log.Verbose(fmt.Sprintf("Failed to retrieve IPFS data of %v", listing.PeerSlug))
+			log.Verbose(fmt.Sprintf("Failed to retrieve IPFS data of %v\n", listing.PeerSlug))
+			log.Verbose(fmt.Sprintf("Deleting %v\n", listing.Hash))
+			res := store.Listings.Search(listing.Hash)
+			if res.Count != 0 {
+				store.Listings.Delete(res.Documents[0].ID)
+			}
 			continue
 		}
 		ipfsListing := models.IPFSListing{}
@@ -192,7 +210,8 @@ func getSelfPeerID() string {
 	return ""
 }
 
-func DigestService(peerStream chan string, store *servicestore.MainManagedStorage) {
+func DigestService(peerStream chan string, store_ *servicestore.MainManagedStorage) {
+	store = store_
 	for peer := range peerStream {
 		log.Debug("Recieved peer...")
 		if val, exists := retryPeers[peer]; exists && val >= 5 {
