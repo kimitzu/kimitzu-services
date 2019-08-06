@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path"
+	"strconv"
 	"strings"
 
 	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
 
 	"github.com/PaesslerAG/gval"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
+	"github.com/djali-foundation/djali-services/location"
+	"github.com/djali-foundation/djali-services/models"
 )
 
 // MainStorage is defunct, user MainManagedStorage
@@ -44,6 +46,14 @@ func LoadCustomEngine() gval.Language {
 		gval.Function("contains", func(fullstr string, substr string) bool {
 			return strings.Contains(fullstr, substr)
 		}),
+		gval.Function("containsInArr", func(arr []interface{}, search string) bool {
+			for _, val := range arr {
+				if val.(string) == search {
+					return true
+				}
+			}
+			return false
+		}),
 		gval.Function("zipWithin", func(sourceZip string, sourceCountry string, targetZip string, targetCountry string, distanceMeters float64) bool {
 			source := locMap[sourceCountry][sourceZip]
 			target := locMap[targetCountry][targetZip]
@@ -59,6 +69,19 @@ func LoadCustomEngine() gval.Language {
 			}
 			return location.Distance(sourceLat, sourceLng, target[0], target[1]) <= distanceMeters
 		}),
+		gval.Function("geoWithin", func(sourceLat, sourceLng, targetLat, targetLng string, distanceMeters float64) bool {
+			if sourceLat == "" || sourceLng == "" || targetLat == "" || targetLng == "" {
+				return false
+			}
+			sourceLat64, _ := strconv.ParseFloat(sourceLat, 64)
+			sourceLng64, _ := strconv.ParseFloat(sourceLng, 64)
+			targetLat64, _ := strconv.ParseFloat(targetLat, 64)
+			targetLng64, _ := strconv.ParseFloat(targetLng, 64)
+			return location.Distance(sourceLat64, sourceLng64, targetLat64, targetLng64) <= distanceMeters
+		}),
+		gval.Function("compareString", func(x, y string) bool {
+			return x < y
+		}),
 	)
 	return language
 }
@@ -66,38 +89,23 @@ func LoadCustomEngine() gval.Language {
 // InitializeManagedStorage - Initializes and returns a MainStorage instance,
 // 		pass this around the various services, acts as like the centraliezd
 // 		storage for the listings and Peer Data
-func InitializeManagedStorage() *MainManagedStorage {
+func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 	store := MainManagedStorage{}
 	store.Pmap = make(map[string]string)
-	// peerConfig := &chunk.Config{
-	// 	ID:         "peers",
-	// 	Path:       "data/peers.chk",
-	// 	IndexDir:   "data/index_peers",
-	// 	IndexPaths: []string{"$.name", "$.shortDescription"},
-	// }
 
-	// peerdata, err := chunk.CreateChunk(peerConfig)
-	// if err != nil {
-	// 	fmt.Println("Storage Info: ", err)
-	// 	peerdata, err = chunk.LoadChunk(peerConfig.Path)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }
-
-	peerStorePath := "data/peers"
-	listingStorePath := "data/listings"
+	peerStorePath := path.Join(rootPath, "data", "peers")
+	listingStorePath := path.Join(rootPath, "data", "listings")
 
 	peerStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "peers",
 		Path:       peerStorePath,
-		IndexPaths: []string{"$.name", "$.shortDescription"},
+		IndexPaths: []string{"$.profile.name", "$.profile.shortDescription"},
 	}
 
 	listingStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "listings",
 		Path:       listingStorePath,
-		IndexPaths: []string{"$.description", "$.title"},
+		IndexPaths: []string{"$.item.description", "$.item.title", "$.hash", "$.vendorID"},
 	}
 
 	if gomenasai.Exists(peerStorePath) {
@@ -126,8 +134,9 @@ func InitializeManagedStorage() *MainManagedStorage {
 			panic(fmt.Errorf("Failed to create listing databse: %v", err))
 		}
 		store.Listings = listing
-		store.Listings.OverrideEvalEngine(LoadCustomEngine())
 	}
+
+	store.Listings.OverrideEvalEngine(LoadCustomEngine())
 
 	return &store
 }

@@ -9,7 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
+	"github.com/djali-foundation/djali-services/servicelogger"
+)
+
+var (
+	obj []Location
 )
 
 type Location struct {
@@ -36,61 +40,110 @@ func InitializeLocationService(log *servicelogger.LogPrinter) []Location {
 	return obj
 }
 
+func HTTPLocationCodesfromHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	x, _ := strconv.ParseFloat(r.URL.Query().Get("x"), 64)
+	y, _ := strconv.ParseFloat(r.URL.Query().Get("y"), 64)
+	within, _ := strconv.ParseFloat(r.URL.Query().Get("within"), 64)
+
+	result := getNearbyLocations(x, y, within, obj)
+
+	if len(result) != 0 {
+		jsn, _ := json.Marshal(result)
+		fmt.Fprint(w, string(jsn))
+	} else {
+		fmt.Fprint(w, `{"error": "notFound"}`)
+	}
+
+}
+
+func HTTPLocationQueryHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	zipCode := r.URL.Query().Get("zip")
+	country := r.URL.Query().Get("country")
+	address := r.URL.Query().Get("address")
+	x := r.URL.Query().Get("x")
+	y := r.URL.Query().Get("y")
+
+	var result []Location
+	for _, loc := range obj {
+		var matches []bool
+		matches = append(matches, loc.ZipCode == zipCode || zipCode == "")
+		matches = append(matches, loc.Country == country || country == "")
+		matches = append(matches, strings.Contains(loc.Address, address) || address == "")
+		matches = append(matches, loc.X == x || x == "")
+		matches = append(matches, loc.Y == y || y == "")
+
+		if !stringInSlice(false, matches) {
+			result = append(result, loc)
+		}
+	}
+	if len(result) != 0 {
+		jsn, _ := json.Marshal(result)
+		fmt.Fprint(w, string(jsn))
+	} else {
+		fmt.Fprint(w, `{"error": "notFound"}`)
+	}
+
+}
+
 func RunLocationService(log *servicelogger.LogPrinter) {
-	obj := InitializeLocationService(log)
+	obj = InitializeLocationService(log)
 
-	http.HandleFunc("/djali/location/query", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		zipCode := r.URL.Query().Get("zip")
-		country := r.URL.Query().Get("country")
-		address := r.URL.Query().Get("address")
-		x := r.URL.Query().Get("x")
-		y := r.URL.Query().Get("y")
+	// http.HandleFunc("/djali/location/query", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 	zipCode := r.URL.Query().Get("zip")
+	// 	country := r.URL.Query().Get("country")
+	// 	address := r.URL.Query().Get("address")
+	// 	x := r.URL.Query().Get("x")
+	// 	y := r.URL.Query().Get("y")
 
-		log.Info(fmt.Sprintln("Querying", r.URL.Query()))
-		var result []Location
-		for _, loc := range obj {
-			var matches []bool
-			matches = append(matches, loc.ZipCode == zipCode || zipCode == "")
-			matches = append(matches, loc.Country == country || country == "")
-			matches = append(matches, strings.Contains(loc.Address, address) || address == "")
-			matches = append(matches, loc.X == x || x == "")
-			matches = append(matches, loc.Y == y || y == "")
+	// 	log.Info(fmt.Sprintln("Querying", r.URL.Query()))
+	// 	var result []Location
+	// 	for _, loc := range obj {
+	// 		var matches []bool
+	// 		matches = append(matches, loc.ZipCode == zipCode || zipCode == "")
+	// 		matches = append(matches, loc.Country == country || country == "")
+	// 		matches = append(matches, strings.Contains(loc.Address, address) || address == "")
+	// 		matches = append(matches, loc.X == x || x == "")
+	// 		matches = append(matches, loc.Y == y || y == "")
 
-			if !stringInSlice(false, matches) {
-				result = append(result, loc)
-			}
-		}
-		if len(result) != 0 {
-			jsn, _ := json.Marshal(result)
-			fmt.Fprint(w, string(jsn))
-		} else {
-			fmt.Fprint(w, `{"error": "notFound"}`)
-		}
+	// 		if !stringInSlice(false, matches) {
+	// 			result = append(result, loc)
+	// 		}
+	// 	}
+	// 	if len(result) != 0 {
+	// 		jsn, _ := json.Marshal(result)
+	// 		fmt.Fprint(w, string(jsn))
+	// 	} else {
+	// 		fmt.Fprint(w, `{"error": "notFound"}`)
+	// 	}
 
-	})
+	// })
 
-	http.HandleFunc("/djali/location/codesfrom", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		x, _ := strconv.ParseFloat(r.URL.Query().Get("x"), 64)
-		y, _ := strconv.ParseFloat(r.URL.Query().Get("y"), 64)
-		within, _ := strconv.ParseFloat(r.URL.Query().Get("within"), 64)
+	// http.HandleFunc("/djali/location/codesfrom", func(w http.ResponseWriter, r *http.Request) {
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// 	x, _ := strconv.ParseFloat(r.URL.Query().Get("x"), 64)
+	// 	y, _ := strconv.ParseFloat(r.URL.Query().Get("y"), 64)
+	// 	within, _ := strconv.ParseFloat(r.URL.Query().Get("within"), 64)
 
-		result := getNearbyLocations(x, y, within, obj)
+	// 	result := getNearbyLocations(x, y, within, obj)
 
-		if len(result) != 0 {
-			jsn, _ := json.Marshal(result)
-			fmt.Fprint(w, string(jsn))
-		} else {
-			fmt.Fprint(w, `{"error": "notFound"}`)
-		}
+	// 	if len(result) != 0 {
+	// 		jsn, _ := json.Marshal(result)
+	// 		fmt.Fprint(w, string(jsn))
+	// 	} else {
+	// 		fmt.Fprint(w, `{"error": "notFound"}`)
+	// 	}
 
-	})
+	// })
 
-	log.Info("Serving at 0.0.0.0:8108")
-	http.ListenAndServe(":8108", nil)
+	// log.Info("Serving at 0.0.0.0:8108")
+	// http.ListenAndServe(":8108", nil)
 }
 
 func getNearbyLocations(x float64, y float64, radius float64, obj []Location) []LocationDistance {
