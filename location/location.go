@@ -1,6 +1,7 @@
 package location
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -31,12 +32,35 @@ type LocationDistance struct {
 
 func InitializeLocationService(log *servicelogger.LogPrinter) []Location {
 	log.Info("Initializing")
-	fstream, err := ioutil.ReadFile("location_data.json")
+	// fstream, err := ioutil.ReadFile("location_data.json")
+	// if err != nil {
+	// 	fmt.Errorf("Failed Reading file %s", err)
+	// }
+	fzip, err := zip.OpenReader("locdat.zip")
 	if err != nil {
-		fmt.Errorf("Failed Reading file %s", err)
+		panic(fmt.Errorf("Failed reading location data[1]: %v", err))
 	}
+	defer fzip.Close()
+
+	locdat := fzip.File[0]
+	ffile, err := locdat.Open()
+
+	if err != nil {
+		panic(fmt.Errorf("Failed reading location data[2]: %v", err))
+	}
+	defer ffile.Close()
+
+	fstream, err := ioutil.ReadAll(ffile)
+
+	if err != nil {
+		panic(fmt.Errorf("Failed to read location data[3]: %v", err))
+	}
+
 	obj := []Location{}
-	json.Unmarshal(fstream, &obj)
+	err = json.Unmarshal(fstream, &obj)
+	if err != nil {
+		panic(fmt.Errorf("Failed to parse locatio data: %v", err))
+	}
 	return obj
 }
 
