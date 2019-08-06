@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
+	"github.com/djali-foundation/djali-services/servicelogger"
 )
 
 var (

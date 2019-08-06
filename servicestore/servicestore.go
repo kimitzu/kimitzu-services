@@ -11,8 +11,8 @@ import (
 	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
 
 	"github.com/PaesslerAG/gval"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/location"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
+	"github.com/djali-foundation/djali-services/location"
+	"github.com/djali-foundation/djali-services/models"
 )
 
 // MainStorage is defunct, user MainManagedStorage
@@ -89,12 +89,12 @@ func LoadCustomEngine() gval.Language {
 // InitializeManagedStorage - Initializes and returns a MainStorage instance,
 // 		pass this around the various services, acts as like the centraliezd
 // 		storage for the listings and Peer Data
-func InitializeManagedStorage() *MainManagedStorage {
+func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 	store := MainManagedStorage{}
 	store.Pmap = make(map[string]string)
 
-	peerStorePath := path.Join("data", "peers")
-	listingStorePath := path.Join("data", "listings")
+	peerStorePath := path.Join(rootPath, "data", "peers")
+	listingStorePath := path.Join(rootPath, "data", "listings")
 
 	peerStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "peers",

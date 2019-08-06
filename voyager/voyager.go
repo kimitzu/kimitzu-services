@@ -12,9 +12,9 @@ import (
 
 	"github.com/levigross/grequests"
 
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicelogger"
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/servicestore"
+	"github.com/djali-foundation/djali-services/models"
+	"github.com/djali-foundation/djali-services/servicelogger"
+	"github.com/djali-foundation/djali-services/servicestore"
 )
 
 var (

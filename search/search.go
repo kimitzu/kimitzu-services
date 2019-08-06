@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/kingsland-team-ph/djali/djali-services.git/models"
+	"github.com/djali-foundation/djali-services/models"
 )
 
 // Find the listings and returns potential matches via supplied keyword
