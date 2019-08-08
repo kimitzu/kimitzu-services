@@ -354,6 +354,8 @@ func RunHTTPService(log *servicelogger.LogPrinter) {
 
 	http.HandleFunc("/djali/media", HTTPMedia)
 
+	http.HandleFunc("/authenticate", Authenticate)
+
 	log.Info("Serving at 0.0.0.0:8109")
 	http.ListenAndServe(":8109", nil)
 }
