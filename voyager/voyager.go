@@ -116,7 +116,7 @@ func clearListings(peer string) error {
 	return nil
 }
 
-// DigestPeer downloads the peer data and package it in a easy to use struct.
+// DigestPeer downloads the peer data and packages it in an easy to use struct.
 //		Downloads the listings and stores them in the database as well.
 func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Peer, error) {
 	peerDat, listingDat, err := getPeerData(peer)
@@ -143,7 +143,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 	}
 
 	// Removes all of the old listings from this particular peer
-	//clearListings(peer)
+	clearListings(peer)
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
