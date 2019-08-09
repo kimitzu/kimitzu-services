@@ -161,7 +161,12 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		}
 		ipfsListing := models.IPFSListing{}
 
-		json.Unmarshal([]byte(listingData.String()), &ipfsListing)
+		err = json.Unmarshal([]byte(listingData.String()), &ipfsListing)
+
+		if err != nil {
+			log.Verbose(fmt.Sprintf("Failed to unmarshal Listing data: %v", listingData.String()))
+			continue
+		}
 
 		// Shuffle the old listing model into the newer listing model
 		// by unmarshalling the data from the old model to the new one
