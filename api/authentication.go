@@ -67,11 +67,6 @@ func Authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method == "GET" {
-		http.Error(w, `{"error": "MethodNotSupported"}`, 405)
-		return
-	}
-
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
@@ -88,6 +83,11 @@ func Authenticate(w http.ResponseWriter, r *http.Request) {
 	info, err := getInfo()
 	if err != nil {
 		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	if r.Method == "GET" {
+		fmt.Fprintf(w, `{"authentication": %v}`, info.Authenticated)
 		return
 	}
 
