@@ -61,6 +61,12 @@ func patchConfig(username, password string, authenticate bool) (DjaliInfoP, erro
 
 func Authenticate(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if r.Method == "GET" {
 		http.Error(w, `{"error": "MethodNotSupported"}`, 405)
 		return
