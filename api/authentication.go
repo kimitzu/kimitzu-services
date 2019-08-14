@@ -20,10 +20,11 @@ type AuthPayload struct {
 }
 
 type DjaliInfoP struct {
-	Repo     string `json:"repoPath"`
-	Cookie   string `json:"cookie"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Repo          string `json:"repoPath"`
+	Cookie        string `json:"cookie"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	Authenticated bool   `json:"authenticated"`
 }
 
 func getInfo() (DjaliInfoP, error) {
@@ -84,7 +85,7 @@ func Authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !(info.Username == payload.Username) || !(info.Password == password) {
+	if (!(info.Username == payload.Username) || !(info.Password == password)) && info.Authenticated {
 		http.Error(w, `{"error": "Invalid credentials"}`, 403)
 		return
 	}
