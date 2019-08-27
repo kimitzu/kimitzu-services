@@ -17,16 +17,18 @@ import (
 
 var (
 	ArgLogLevel string
+	DataPath    string
 	LogLevel    int
 	Version     string
 )
 
 func init() {
 	flag.StringVar(&ArgLogLevel, "log", "0", "Port to listen")
+	flag.StringVar(&DataPath, "data", "", "Folder to store location data")
 	flag.Parse()
 	llvl, _ := strconv.Atoi(ArgLogLevel)
 	LogLevel = llvl
-	Version = "0.0.1"
+	Version = "0.1.2"
 }
 
 func main() {
@@ -43,7 +45,7 @@ func main() {
 	log.Info("Log Level: " + ArgLogLevel)
 	log.Info("Starting Services")
 
-	store := servicestore.InitializeManagedStorage("")
+	store := servicestore.InitializeManagedStorage(DataPath)
 
 	// test(&srvLog, log, store)
 	time.Sleep(time.Second * 10)

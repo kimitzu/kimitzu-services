@@ -30,7 +30,7 @@ type MainManagedStorage struct {
 }
 
 func LoadLocationMap() map[string]map[string][]float64 {
-	fstream, err := ioutil.ReadFile("locationmap.json")
+	fstream, err := ioutil.ReadFile("./locationmap.json")
 	if err != nil {
 		fmt.Printf("Failed Reading file %v\n", err)
 	}

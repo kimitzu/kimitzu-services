@@ -36,7 +36,7 @@ func InitializeLocationService(log *servicelogger.LogPrinter) []Location {
 	// if err != nil {
 	// 	fmt.Errorf("Failed Reading file %s", err)
 	// }
-	fzip, err := zip.OpenReader("locdat.zip")
+	fzip, err := zip.OpenReader("./locdat.zip")
 	if err != nil {
 		panic(fmt.Errorf("Failed reading location data[1]: %v", err))
 	}
