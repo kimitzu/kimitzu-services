@@ -298,7 +298,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 					store.PeerData.Update(peerd.ID, peer)
 					DigestPeer(peer.ID, store)
 				}
-				else if (time.Now().Unix() - peer.LastPing) > 86400 {
+				if (time.Now().Unix() - peer.LastPing) > 86400 {
 					clearListings(peer.ID)
 				} 
 			}
