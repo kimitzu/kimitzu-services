@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/djali-foundation/djali-services/location"
 
@@ -59,7 +60,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 	toret := ""
 	message := ""
 
-	if exists && force != "true" {
+	if exists && docid != "" && force != "true" {
 		doc, err := store.PeerData.Get(docid)
 		if err != nil {
 			toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
@@ -97,7 +98,11 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
-	fmt.Fprint(w, toret)
+	if strings.Contains(toret, "error") {
+		http.Error(w, toret, 500)
+	} else {
+		fmt.Fprint(w, toret)
+	}
 }
 
 func HTTPPeers(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +154,7 @@ func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
 	params := &models.AdvancedSearchQuery{}
 	err = json.Unmarshal(b, &params)
 	if err != nil {
-		fmt.Fprint(w, fmt.Sprintf(`{"error": "Failed to decode body", "goerror": "%v"}`, err))
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to decode body", "goerror": "%v"}`, err), 500)
 		return
 	}
 
@@ -205,7 +210,7 @@ func HTTPListing(w http.ResponseWriter, r *http.Request) {
 	hash := r.URL.Query().Get("hash")
 	results := store.Listings.Search(hash)
 	if len(results.Documents) == 0 {
-		fmt.Fprint(w, "{\"error\": \"No results\"}")
+		http.Error(w, "{\"error\": \"No results\"}", 404)
 		return
 	}
 	listing, _ := json.Marshal(results.Documents[0].ExportI())
@@ -245,7 +250,7 @@ func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
 	params := &models.AdvancedSearchQuery{}
 	err = json.Unmarshal(b, &params)
 	if err != nil {
-		fmt.Fprint(w, fmt.Sprintf(`{"error": "Failed to decode body", "goerror": "%v"}`, err))
+		http.Error(w, fmt.Sprintf(`{"error": "Failed to decode body", "goerror": "%v"}`, err), 500)
 		return
 	}
 
@@ -305,7 +310,7 @@ func HTTPMedia(w http.ResponseWriter, r *http.Request) {
 		// If media is not found in data/images, fallback to ipfs
 		resp, err2 := http.Get("http://localhost:4002/ob/images/" + id)
 		if err2 != nil {
-			fmt.Fprint(w, `{"response": "Media not found"}`)
+			http.Error(w, `{"error": "Media not found"}`, 404)
 			return
 		}
 		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
