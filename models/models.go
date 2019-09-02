@@ -93,7 +93,8 @@ type Variant struct {
 }
 
 type Skus struct {
-	VariantCombo []int64 `json:"variantCombo"`
+	ProductID string `json:"productID"`
+	Quantity  int64  `json:"quantity"`
 }
 
 type Metadata struct {

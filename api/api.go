@@ -30,16 +30,23 @@ type APIListResult struct {
 	Data      []interface{} `json:"data"`
 }
 
-func setupResponse(w *http.ResponseWriter, req *http.Request) {
+func setupResponse(w *http.ResponseWriter, req *http.Request) bool {
 	(*w).Header().Set("Access-Control-Allow-Origin", req.Header.Get("origin"))
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, PATCH, PUT, DELETE, OPTIONS")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Origin, X-Requested-With")
 	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
 	(*w).Header().Set("Content-Type", "application/json")
+	if req.Method == "OPTIONS" {
+		(*w).WriteHeader(http.StatusOK)
+		return true
+	}
+	return false
 }
 
 func HTTPPeerGetListings(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
 
 	result := store.Listings.Search("")
 	jsn, err := result.ExportJSONArray()
@@ -51,8 +58,9 @@ func HTTPPeerGetListings(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
 
 	qpeerid := r.URL.Query().Get("id")
 	force := r.URL.Query().Get("force")
@@ -106,7 +114,9 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPPeers(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
 
 	peers := store.PeerData.Search("")
 	data, _ := peers.ExportJSONArray()
@@ -114,7 +124,9 @@ func HTTPPeers(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
 
 	peerID := r.URL.Query().Get("id")
 
@@ -142,7 +154,9 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
 
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -205,7 +219,9 @@ func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPListing(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
 
 	hash := r.URL.Query().Get("hash")
 	results := store.Listings.Search(hash)
@@ -238,10 +254,7 @@ func HTTPListing(w http.ResponseWriter, r *http.Request) {
 * 	}
  */
 func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
+	if retOK := setupResponse(&w, r); retOK {
 		return
 	}
 
@@ -306,7 +319,9 @@ func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func HTTPMedia(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
 
 	id := r.URL.Query().Get("id")
 	image, err := os.Open("data/images/" + id)
