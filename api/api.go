@@ -240,6 +240,11 @@ func HTTPListing(w http.ResponseWriter, r *http.Request) {
 func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
