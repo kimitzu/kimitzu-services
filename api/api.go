@@ -43,6 +43,12 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) bool {
 	return false
 }
 
+func HTTPFlushAll(w http.ResponseWriter, r *http.Request) {
+	store.Listings.FlushSE()
+	store.PeerData.FlushSE()
+	fmt.Fprint(w, `{"result": "ok"}`)
+}
+
 func HTTPPeerGetListings(w http.ResponseWriter, r *http.Request) {
 	if retOK := setupResponse(&w, r); retOK {
 		return
