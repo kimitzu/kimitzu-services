@@ -388,6 +388,8 @@ func RunHTTPService(log *servicelogger.LogPrinter) {
 
 	http.HandleFunc("/authenticate", Authenticate)
 
+	http.HandleFunc("/debug/flush", HTTPFlushAll)
+
 	log.Info("Serving at 0.0.0.0:8109")
 	http.ListenAndServe(":8109", nil)
 }
