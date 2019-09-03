@@ -69,6 +69,11 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	qpeerid := r.URL.Query().Get("id")
+
+	if qpeerid == "" {
+		qpeerid = voyager.GetSelfPeerID()
+	}
+
 	force := r.URL.Query().Get("force")
 	docid, exists := store.Pmap[qpeerid]
 	toret := ""

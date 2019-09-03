@@ -113,6 +113,7 @@ func clearListings(peer string) error {
 			return err
 		}
 	}
+	store.Listings.FlushSE()
 	return nil
 }
 
@@ -201,7 +202,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		LastPing: time.Now().Unix()}, nil
 }
 
-func getSelfPeerID() string {
+func GetSelfPeerID() string {
 	rdata, err := grequests.Get("http://localhost:4002/ob/profile/", ro)
 	if err != nil {
 		return ""
@@ -264,7 +265,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 	peerStream = make(chan string, 1000)
 	retryPeers = make(map[string]int)
 
-	myPeerID := getSelfPeerID()
+	myPeerID := GetSelfPeerID()
 	if myPeerID != "" {
 		peerStream <- myPeerID
 	}
@@ -300,7 +301,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 				}
 				if (time.Now().Unix() - peer.LastPing) > 86400 {
 					clearListings(peer.ID)
-				} 
+				}
 			}
 			time.Sleep(time.Minute * 30)
 		}
