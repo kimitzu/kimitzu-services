@@ -37,21 +37,24 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 		log.Error("Peer resolve timeout for " + peer)
 	}
 	listJSON := []string{}
-	json.Unmarshal([]byte(resp.String()), &listJSON)
-	for _, peer := range listJSON {
-		peerlist <- peer
+	err := json.Unmarshal([]byte(resp.String()), &listJSON)
+	if err == nil {
+		for _, peer := range listJSON {
+			peerlist <- peer
+		}
 	}
 
 	select {
 	case <-maxClosest:
 		return
-	case <-time.After(time.Second * 10):
+	case <-time.After(time.Second * 60):
 		return
 	}
 }
 
 func findPeers(peerlist chan<- string) {
 	for {
+		log.Debug("Looking for peers...")
 		resp, err := grequests.Get("http://localhost:4002/ob/peers", ro)
 		if err != nil {
 			log.Error("Can't Load OpenBazaar Peers")
@@ -107,7 +110,9 @@ func downloadFile(fileName string) {
 }
 
 func clearListings(peer string) error {
-	for _, doc := range store.Listings.Search(peer).Documents {
+	result := store.Listings.Search()
+	result.Filter(fmt.Sprintf("doc.vendorID.peerID == \"%v\"", peer))
+	for _, doc := range result.Documents {
 		err := store.Listings.Delete(doc.ID)
 		if err != nil {
 			return err
