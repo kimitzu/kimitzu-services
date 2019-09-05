@@ -110,7 +110,7 @@ func downloadFile(fileName string) {
 }
 
 func clearListings(peer string) error {
-	result := store.Listings.Search()
+	result := store.Listings.Search("")
 	result.Filter(fmt.Sprintf("doc.vendorID.peerID == \"%v\"", peer))
 	for _, doc := range result.Documents {
 		err := store.Listings.Delete(doc.ID)
