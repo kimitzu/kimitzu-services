@@ -37,7 +37,7 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 		log.Error("Peer resolve timeout for " + peer)
 	}
 	listJSON := []string{}
-	err := json.Unmarshal([]byte(resp.String()), &listJSON)
+	err = json.Unmarshal([]byte(resp.String()), &listJSON)
 	if err == nil {
 		for _, peer := range listJSON {
 			peerlist <- peer
