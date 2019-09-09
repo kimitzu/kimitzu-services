@@ -4,10 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"path"
 	"strconv"
 	"time"
 
 	"github.com/djali-foundation/djali-services/api"
+	"github.com/mitchellh/go-homedir"
 
 	"github.com/djali-foundation/djali-services/location"
 	"github.com/djali-foundation/djali-services/servicelogger"
@@ -24,8 +26,12 @@ var (
 
 func init() {
 	flag.StringVar(&ArgLogLevel, "log", "0", "Port to listen")
-	flag.StringVar(&DataPath, "data", "", "Folder to store location data")
+	flag.StringVar(&DataPath, "data", "&home", "Folder to store location data")
 	flag.Parse()
+	if DataPath == "&home" {
+		home, _ := homedir.Dir()
+		DataPath = path.Join(home, "djali")
+	}
 	llvl, _ := strconv.Atoi(ArgLogLevel)
 	LogLevel = llvl
 	Version = "0.1.2"

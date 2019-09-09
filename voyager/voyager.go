@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -95,7 +94,7 @@ func downloadFile(fileName string) {
 		return
 	}
 
-	file, err := http.Get("http://localhost:4002/ipfs/" + fileName)
+	file, err := grequests.Get("http://localhost:4002/ipfs/"+fileName, ro)
 	if err != nil {
 		panic(err)
 	}
@@ -106,7 +105,7 @@ func downloadFile(fileName string) {
 		panic(err)
 	}
 
-	_, err = io.Copy(outFile, file.Body)
+	_, err = io.Copy(outFile, file)
 }
 
 func clearListings(peer string) error {
@@ -149,7 +148,6 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 	}
 
 	// Removes all of the old listings from this particular peer
-	clearListings(peer)
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
@@ -187,20 +185,19 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		json.Unmarshal(oldListingDat, &classListing)
 
 		// Check if the listing hash already exists and update it instead of inserting a new one.
-		existing := store.Listings.Search(classListing.Hash)
-		if existing.Count == 1 {
-			store.Listings.Update(existing.Documents[0].ID, classListing)
-		} else {
-			store.Listings.Insert(classListing)
-		}
+		// existing := store.Listings.Search(classListing.Hash)
+		// if existing.Count == 1 {
+		// 	store.Listings.Update(existing.Documents[0].ID, classListing)
+		// } else {
+		// 	store.Listings.Insert(classListing)
+		// }
 
-		downloadFile(listing.Thumbnail.Medium)
-		downloadFile(listing.Thumbnail.Small)
-		downloadFile(listing.Thumbnail.Tiny)
+		go downloadFile(listing.Thumbnail.Medium)
+		go downloadFile(listing.Thumbnail.Small)
+		go downloadFile(listing.Thumbnail.Tiny)
 	}
 
 	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
-	log.Verbose(fmt.Sprint(" len > ", strconv.Itoa(len(peerListings))))
 	return &models.Peer{
 		ID:       peer,
 		RawMap:   peerJSON,
@@ -302,9 +299,15 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 				if IsPeerOnline(peer.ID) {
 					peer.LastPing = time.Now().Unix()
 					store.PeerData.Update(peerd.ID, peer)
-					DigestPeer(peer.ID, store)
+					log.Debug(fmt.Sprintln("Refreshing peer", peer.ID))
+					d, err := DigestPeer(peer.ID, store)
+					if err != nil {
+						log.Error(fmt.Sprintln("Failed to refresh ", d.ID, err))
+					}
+					log.Debug(fmt.Sprintln("Finished refreshing", peer.ID))
 				}
 				if (time.Now().Unix() - peer.LastPing) > 86400 {
+					log.Debug(fmt.Sprintln("Disposing Peer ", peer, "\nDeadline: ", time.Now().Unix(), peer.LastPing, (time.Now().Unix() - peer.LastPing)))
 					clearListings(peer.ID)
 				}
 			}
