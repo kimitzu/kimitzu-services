@@ -186,12 +186,12 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		json.Unmarshal(oldListingDat, &classListing)
 
 		// Check if the listing hash already exists and update it instead of inserting a new one.
-		// existing := store.Listings.Search(classListing.Hash)
-		// if existing.Count == 1 {
-		// 	store.Listings.Update(existing.Documents[0].ID, classListing)
-		// } else {
-		// 	store.Listings.Insert(classListing)
-		// }
+		existing := store.Listings.Search(classListing.Hash)
+		if existing.Count == 1 {
+			store.Listings.Update(existing.Documents[0].ID, classListing)
+		} else {
+			store.Listings.Insert(classListing)
+		}
 
 		go downloadFile(listing.Thumbnail.Medium)
 		go downloadFile(listing.Thumbnail.Small)
