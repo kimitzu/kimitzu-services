@@ -198,7 +198,9 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		go downloadFile(listing.Thumbnail.Tiny)
 	}
 
-	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"]))
+	log.Verbose(fmt.Sprintf("Committing Listings", peerJSON["name"]))
+	store.Listings.Commit()
+	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"], len(peerListings)))
 	return &models.Peer{
 		ID:       peer,
 		RawMap:   peerJSON,
@@ -240,7 +242,6 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 				panic(err)
 			}
 			store.Pmap[peer] = peerObjID
-			go store.Listings.FlushSE()
 			store.Listings.Commit()
 			store.PeerData.Commit()
 		} else {
