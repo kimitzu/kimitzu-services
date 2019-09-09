@@ -148,6 +148,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 	}
 
 	// Removes all of the old listings from this particular peer
+	clearListings(peer)
 	for _, listing := range peerListings {
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
@@ -278,6 +279,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 
 	peers := store.PeerData.Search("")
 
+	log.Debug("Creating PeerMap")
 	for _, doc := range peers.Documents {
 		interfpeer := models.Peer{}
 		doc.Export(&interfpeer)
@@ -286,10 +288,12 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 	}
 
 	// Digests found peers
+	log.Debug("Starting Digest Service")
 	go DigestService(peerStream, store)
 
 	// Occasionally ping the peers
 	go func() {
+		log.Debug("Starting Ping Service")
 		for {
 			peers := store.PeerData.Search("")
 			for _, peerd := range peers.Documents {
@@ -297,17 +301,16 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 				peerd.Export(&peer)
 				log.Verbose(fmt.Sprintf("Pinging %v", peer.ID))
 				if IsPeerOnline(peer.ID) {
-					peer.LastPing = time.Now().Unix()
-					store.PeerData.Update(peerd.ID, peer)
 					log.Debug(fmt.Sprintln("Refreshing peer", peer.ID))
 					d, err := DigestPeer(peer.ID, store)
+					d.LastPing = time.Now().Unix()
+					store.PeerData.Update(peer.ID, d)
 					if err != nil {
 						log.Error(fmt.Sprintln("Failed to refresh ", d.ID, err))
 					}
 					log.Debug(fmt.Sprintln("Finished refreshing", peer.ID))
-				}
-				if (time.Now().Unix() - peer.LastPing) > 86400 {
-					log.Debug(fmt.Sprintln("Disposing Peer ", peer, "\nDeadline: ", time.Now().Unix(), peer.LastPing, (time.Now().Unix() - peer.LastPing)))
+				} else if (time.Now().Unix() - peer.LastPing) > 86400 {
+					log.Debug(fmt.Sprintln("Disposing Peer ", peer.ID, "\nDeadline: ", time.Now().Unix(), peer.LastPing, (time.Now().Unix() - peer.LastPing)))
 					clearListings(peer.ID)
 				}
 			}
