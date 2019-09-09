@@ -96,13 +96,13 @@ func downloadFile(fileName string) {
 
 	file, err := grequests.Get("http://localhost:4002/ipfs/"+fileName, ro)
 	if err != nil {
-		panic(err)
+		log.Error(fmt.Sprintf("Failed to download resource", err))
 	}
 
 	outFile, err := os.Create("data/images/" + fileName)
 	defer outFile.Close()
 	if err != nil {
-		panic(err)
+		log.Error(fmt.Sprintf("Failed to save resource", err))
 	}
 
 	_, err = io.Copy(outFile, file)
