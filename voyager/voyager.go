@@ -253,13 +253,14 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 }
 
 func IsPeerOnline(peerid string) bool {
-	isOnline, err := grequests.Get("http://localhost:4002/ob/peerinfo/"+peerid+"?usecache=false", ro)
+	isOnline, err := grequests.Get("http://localhost:4002/ob/status/"+peerid+"?usecache=false", ro)
 	if err != nil {
 		return false
 	}
 	result := make(map[string]string)
 	isOnline.JSON(&result)
-	return result["result"] == "online"
+	log.Debug(fmt.Sprintf("IsPeerOnline: ", result))
+	return result["status"] == "online"
 }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
@@ -310,7 +311,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 						log.Error(fmt.Sprintln("Failed to refresh ", d.ID, err))
 					}
 					log.Debug(fmt.Sprintln("Finished refreshing", peer.ID))
-				} else if (time.Now().Unix() - peer.LastPing) > 86400 {
+				} else if (time.Now().Unix() - peer.LastPing) > 259200 {
 					log.Debug(fmt.Sprintln("Disposing Peer ", peer.ID, "\nDeadline: ", time.Now().Unix(), peer.LastPing, (time.Now().Unix() - peer.LastPing)))
 					clearListings(peer.ID)
 				}
