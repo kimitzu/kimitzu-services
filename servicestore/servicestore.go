@@ -1,9 +1,7 @@
 package servicestore
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"path"
 	"strconv"
 	"strings"
@@ -11,6 +9,7 @@ import (
 	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
 
 	"github.com/PaesslerAG/gval"
+
 	"github.com/djali-foundation/djali-services/location"
 	"github.com/djali-foundation/djali-services/models"
 )
@@ -27,63 +26,6 @@ type MainManagedStorage struct {
 	Pmap     map[string]string
 	PeerData *gomenasai.Gomenasai
 	Listings *gomenasai.Gomenasai
-}
-
-func LoadLocationMap() map[string]map[string][]float64 {
-	fstream, err := ioutil.ReadFile("./locationmap.json")
-	if err != nil {
-		fmt.Printf("Failed Reading file %v\n", err)
-	}
-	obj := make(map[string]map[string][]float64)
-	json.Unmarshal(fstream, &obj)
-	return obj
-}
-
-// LoadCustomEngine loads a custom gval.Language to extend the capabilities of the Filters.
-func LoadCustomEngine() gval.Language {
-	locMap := LoadLocationMap()
-	language := gval.Full(
-		gval.Function("contains", func(fullstr string, substr string) bool {
-			return strings.Contains(fullstr, substr)
-		}),
-		gval.Function("containsInArr", func(arr []interface{}, search string) bool {
-			for _, val := range arr {
-				if val.(string) == search {
-					return true
-				}
-			}
-			return false
-		}),
-		gval.Function("zipWithin", func(sourceZip string, sourceCountry string, targetZip string, targetCountry string, distanceMeters float64) bool {
-			source := locMap[sourceCountry][sourceZip]
-			target := locMap[targetCountry][targetZip]
-			if targetZip == "" {
-				return false
-			}
-			return location.Distance(source[0], source[1], target[0], target[1]) <= distanceMeters
-		}),
-		gval.Function("coordsWithin", func(sourceLat float64, sourceLng float64, targetZip string, targetCountry string, distanceMeters float64) bool {
-			target := locMap[targetCountry][targetZip]
-			if targetZip == "" {
-				return false
-			}
-			return location.Distance(sourceLat, sourceLng, target[0], target[1]) <= distanceMeters
-		}),
-		gval.Function("geoWithin", func(sourceLat, sourceLng, targetLat, targetLng string, distanceMeters float64) bool {
-			if sourceLat == "" || sourceLng == "" || targetLat == "" || targetLng == "" {
-				return false
-			}
-			sourceLat64, _ := strconv.ParseFloat(sourceLat, 64)
-			sourceLng64, _ := strconv.ParseFloat(sourceLng, 64)
-			targetLat64, _ := strconv.ParseFloat(targetLat, 64)
-			targetLng64, _ := strconv.ParseFloat(targetLng, 64)
-			return location.Distance(sourceLat64, sourceLng64, targetLat64, targetLng64) <= distanceMeters
-		}),
-		gval.Function("compareString", func(x, y string) bool {
-			return x < y
-		}),
-	)
-	return language
 }
 
 // InitializeManagedStorage - Initializes and returns a MainStorage instance,

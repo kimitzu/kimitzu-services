@@ -59,7 +59,7 @@ func findPeers(peerlist chan<- string) {
 			log.Error("Can't Load OpenBazaar Peers")
 			continue
 		}
-		listJSON := []string{}
+		var listJSON []string
 		json.Unmarshal([]byte(resp.String()), &listJSON)
 		for _, peer := range listJSON {
 			peerlist <- peer
@@ -298,19 +298,29 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 		log.Debug("Starting Ping Service")
 		for {
 			peers := store.PeerData.Search("")
-			for _, peerd := range peers.Documents {
+			for _, peerD := range peers.Documents {
 				peer := models.Peer{}
-				peerd.Export(&peer)
+				peerD.Export(&peer)
+
+				if peer.ID == "" {
+					log.Error(fmt.Sprintf("Failed to load peer from database: %v", peerD.ID))
+				}
+
 				log.Verbose(fmt.Sprintf("Pinging %v", peer.ID))
+
 				if IsPeerOnline(peer.ID) {
 					log.Debug(fmt.Sprintln("Refreshing peer", peer.ID))
+
 					d, err := DigestPeer(peer.ID, store)
-					d.LastPing = time.Now().Unix()
-					store.PeerData.Update(peer.ID, d)
 					if err != nil {
 						log.Error(fmt.Sprintln("Failed to refresh ", d.ID, err))
+					} else {
+						d.LastPing = time.Now().Unix()
+						store.PeerData.Update(peer.ID, d)
 					}
+
 					log.Debug(fmt.Sprintln("Finished refreshing", peer.ID))
+
 				} else if (time.Now().Unix() - peer.LastPing) > 259200 {
 					log.Debug(fmt.Sprintln("Disposing Peer ", peer.ID, "\nDeadline: ", time.Now().Unix(), peer.LastPing, (time.Now().Unix() - peer.LastPing)))
 					clearListings(peer.ID)

@@ -78,6 +78,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 	docid, exists := store.Pmap[qpeerid]
 	toret := ""
 	message := ""
+	errCode := 500
 
 	if exists && docid != "" && force != "true" {
 		doc, err := store.PeerData.Get(docid)
@@ -114,11 +115,12 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 			toret = string(peerObjJSON)
 		} else {
 			toret = `{"error": "Not found and failed to digest"}`
+			errCode = 404
 		}
 
 	}
 	if strings.Contains(toret, "error") {
-		http.Error(w, toret, 500)
+		http.Error(w, toret, errCode)
 	} else {
 		fmt.Fprint(w, toret)
 	}
@@ -168,7 +170,6 @@ func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
 	if retOK := setupResponse(&w, r); retOK {
 		return
 	}
-
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
