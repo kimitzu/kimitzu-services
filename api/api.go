@@ -237,12 +237,18 @@ func HTTPListing(w http.ResponseWriter, r *http.Request) {
 
 	hash := r.URL.Query().Get("hash")
 	results := store.Listings.Search(hash)
+
+	if len(results.Documents) == 0 {
+		results = store.Listings.Search("").Filter(fmt.Sprintf("doc.hash == \"%v\"", hash))
+	}
+
 	if len(results.Documents) == 0 {
 		http.Error(w, "{\"error\": \"No results\"}", 404)
 		return
 	}
+
 	listing, _ := json.Marshal(results.Documents[0].ExportI())
-	fmt.Fprintf(w, string(listing))
+	_, _ = fmt.Fprintf(w, string(listing))
 	return
 }
 
