@@ -288,6 +288,10 @@ func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
 
 	results := store.Listings.Search(params.Query)
 
+	if results.Count == 0 {
+		results = store.Listings.Search("")
+	}
+
 	if len(params.Filters) != 0 {
 		for _, filter := range params.Filters {
 			//log.Debug("Running filter: " + filter)
