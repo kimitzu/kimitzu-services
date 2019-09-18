@@ -17,11 +17,10 @@ import (
 )
 
 var (
-	crawledPeers []string
-	peerStream   chan string
-	retryPeers   map[string]int
-	log          *servicelogger.LogPrinter
-	store        *servicestore.MainManagedStorage
+	peerStream chan string
+	retryPeers map[string]int
+	log        *servicelogger.LogPrinter
+	store      *servicestore.MainManagedStorage
 )
 
 var ro = &grequests.RequestOptions{RequestTimeout: 70 * time.Second}
@@ -35,11 +34,14 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 	if err != nil {
 		log.Error("Peer resolve timeout for " + peer)
 	}
-	listJSON := []string{}
-	err = json.Unmarshal([]byte(resp.String()), &listJSON)
-	if err == nil {
-		for _, peer := range listJSON {
-			peerlist <- peer
+
+	if resp != nil {
+		listJSON := []string{}
+		err = json.Unmarshal([]byte(resp.String()), &listJSON)
+		if err == nil {
+			for _, peer := range listJSON {
+				peerlist <- peer
+			}
 		}
 	}
 
@@ -100,7 +102,9 @@ func downloadFile(fileName string) {
 	}
 
 	outFile, err := os.Create("data/images/" + fileName)
-	defer outFile.Close()
+	if outFile != nil {
+		defer outFile.Close()
+	}
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to save resource", err))
 	}

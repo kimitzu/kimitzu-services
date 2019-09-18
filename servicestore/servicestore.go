@@ -3,14 +3,9 @@ package servicestore
 import (
 	"fmt"
 	"path"
-	"strconv"
-	"strings"
 
 	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
 
-	"github.com/PaesslerAG/gval"
-
-	"github.com/djali-foundation/djali-services/location"
 	"github.com/djali-foundation/djali-services/models"
 )
 
