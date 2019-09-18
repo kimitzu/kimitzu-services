@@ -96,6 +96,9 @@ func LoadCustomEngine() gval.Language {
 			return x < y
 		}),
 		gval.Function("like", func(x, y string) bool {
+			if y == "" || x == "" {
+				return false
+			}
 			return like(x, y)
 		}),
 	)
