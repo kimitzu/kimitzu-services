@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path"
 
-	gomenasai "gitlab.com/nokusukun/go-menasai/manager"
+	gomenasai "github.com/nokusukun/go-menasai/manager"
 
 	"github.com/djali-foundation/djali-services/models"
 )
