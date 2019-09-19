@@ -18,9 +18,10 @@ type MainStorage struct {
 // MainManagedStorage holds the storage stuff
 //	Pmap is the peer mapping of the peerID to the chunk peerDocumentID
 type MainManagedStorage struct {
-	Pmap     map[string]string
-	PeerData *gomenasai.Gomenasai
-	Listings *gomenasai.Gomenasai
+	Pmap      map[string]string
+	PeerData  *gomenasai.Gomenasai
+	Listings  *gomenasai.Gomenasai
+	StorePath string
 }
 
 // InitializeManagedStorage - Initializes and returns a MainStorage instance,
@@ -29,6 +30,7 @@ type MainManagedStorage struct {
 func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 	store := MainManagedStorage{}
 	store.Pmap = make(map[string]string)
+	store.StorePath = rootPath
 
 	peerStorePath := path.Join(rootPath, "data", "peers")
 	listingStorePath := path.Join(rootPath, "data", "listings")

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -344,7 +345,7 @@ func HTTPMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := r.URL.Query().Get("id")
-	image, err := os.Open("data/images/" + id)
+	image, err := os.Open(path.Join(store.StorePath, "images", id))
 
 	if err != nil {
 		// If media is not found in data/images, fallback to ipfs

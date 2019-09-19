@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -91,7 +92,7 @@ func getPeerData(peer string) (string, string, error) {
 }
 
 func downloadFile(fileName string) {
-	if doesFileExist("data/images/" + fileName) {
+	if doesFileExist(path.Join(store.StorePath, "images", fileName)) {
 		// log.Verbose("File " + fileName + " already downloaded, skipping...")
 		return
 	}
@@ -101,7 +102,8 @@ func downloadFile(fileName string) {
 		log.Error(fmt.Sprintf("Failed to download resource", err))
 	}
 
-	outFile, err := os.Create("data/images/" + fileName)
+	//outFile, err := os.Create("data/images/" + fileName)
+	outFile, err := os.Create(path.Join(store.StorePath, "images", fileName))
 	if outFile != nil {
 		defer outFile.Close()
 	}
@@ -170,13 +172,13 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		}
 		ipfsListing := models.IPFSListing{}
 
+		err = json.Unmarshal([]byte(listingData.String()), &ipfsListing)
+
 		if ipfsListing.Listing.Metadata.ContractType != "SERVICE" {
 			log.Verbose(
 				fmt.Sprintf("Skipping: %v, Service Type is: %v", ipfsListing.Listing.Slug, ipfsListing.Listing.Metadata.ContractType))
 			continue
 		}
-
-		err = json.Unmarshal([]byte(listingData.String()), &ipfsListing)
 
 		if err != nil {
 			log.Verbose(fmt.Sprintf("Failed to unmarshal Listing data: %v", listingData.String()))
@@ -269,7 +271,7 @@ func IsPeerOnline(peerid string) bool {
 	}
 	result := make(map[string]string)
 	isOnline.JSON(&result)
-	log.Debug(fmt.Sprintf("IsPeerOnline: ", result))
+	log.Debug(fmt.Sprintf("isPeerOnline: ", result))
 	return result["status"] == "online"
 }
 
@@ -285,8 +287,9 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 		peerStream <- myPeerID
 	}
 
-	ensureDir("data/peers/.test")
-	ensureDir("data/images/.test")
+	// ensureDir("data/peers/.test")
+	// ensureDir("data/images/.test")
+	ensureDir(path.Join(store.StorePath, "images", ".test"))
 	go findPeers(peerStream)
 
 	peers := store.PeerData.Search("")
