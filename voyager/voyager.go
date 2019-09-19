@@ -170,6 +170,10 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		}
 		ipfsListing := models.IPFSListing{}
 
+		if ipfsListing.Listing.Metadata.ContractType != "SERVICE" {
+			continue
+		}
+
 		err = json.Unmarshal([]byte(listingData.String()), &ipfsListing)
 
 		if err != nil {
