@@ -153,6 +153,8 @@ type AdvancedSearchQuery struct {
 	Start      int           `json:"start"`
 	Transforms []interface{} `json:"transforms"`
 	Sort       string        `json:"sort"`
+	// Generous means that all of the database items are going to be filtered
+	Generous bool `json:"generous"`
 }
 
 // Probably Remove everything beyond this block in the future

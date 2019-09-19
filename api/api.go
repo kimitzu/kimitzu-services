@@ -290,11 +290,9 @@ func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//log.Verbose("[/search] Parameter [query=" + params.Query + "]")
-
 	results := store.Listings.Search(params.Query)
 
-	if results.Count == 0 {
+	if results.Count == 0 && params.Generous {
 		results = store.Listings.Search("")
 	}
 
@@ -323,20 +321,20 @@ func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
 		nextStart = -1
 	}
 
-	arr := []interface{}{}
+	var arr []interface{}
 	for _, doc := range results.Documents {
 		i := new(interface{})
-		json.Unmarshal(doc.Content, &i)
+		_ = json.Unmarshal(doc.Content, &i)
 		arr = append(arr, i)
 	}
 
-	listreturn := APIListResult{
+	listReturn := APIListResult{
 		Count:     results.Count,
 		Limit:     params.Limit,
 		NextStart: nextStart,
 		Data:      arr,
 	}
-	retStr, _ := json.Marshal(listreturn)
+	retStr, _ := json.Marshal(listReturn)
 	fmt.Fprint(w, string(retStr))
 }
 
