@@ -171,6 +171,8 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		ipfsListing := models.IPFSListing{}
 
 		if ipfsListing.Listing.Metadata.ContractType != "SERVICE" {
+			log.Verbose(
+				fmt.Sprintf("Skipping: %v, Service Type is: %v", ipfsListing.Listing.Slug, ipfsListing.Listing.Metadata.ContractType))
 			continue
 		}
 
