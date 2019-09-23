@@ -68,11 +68,13 @@ func LoadCustomEngine() gval.Language {
 			return false
 		}),
 		gval.Function("zipWithin", func(sourceZip string, sourceCountry string, targetZip string, targetCountry string, distanceMeters float64) bool {
-			source := locMap[sourceCountry][sourceZip]
-			target := locMap[targetCountry][targetZip]
-			if targetZip == "" {
+			if sourceCountry == "" || sourceZip == "" || targetZip == "" || targetCountry == "" {
 				return false
 			}
+
+			source := locMap[sourceCountry][sourceZip]
+			target := locMap[targetCountry][targetZip]
+
 			return location.Distance(source[0], source[1], target[0], target[1]) <= distanceMeters
 		}),
 		gval.Function("coordsWithin", func(sourceLat float64, sourceLng float64, targetZip string, targetCountry string, distanceMeters float64) bool {

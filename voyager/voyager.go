@@ -287,8 +287,6 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 		peerStream <- myPeerID
 	}
 
-	// ensureDir("data/peers/.test")
-	// ensureDir("data/images/.test")
 	ensureDir(path.Join(store.StorePath, "images", ".test"))
 	go findPeers(peerStream)
 
