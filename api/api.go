@@ -1,6 +1,7 @@
 package api
 
 import (
+    "context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+    "time"
 
 	"github.com/djali-foundation/djali-services/location"
 
@@ -22,6 +24,10 @@ import (
 
 var (
 	store *servicestore.MainManagedStorage
+)
+
+const (
+    TIMEOUT = time.Second * 30
 )
 
 type APIListResult struct {
@@ -75,56 +81,68 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 		qpeerid = voyager.GetSelfPeerID()
 	}
 
+    ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+    success := make(chan struct{})
+
 	force := r.URL.Query().Get("force")
 	docid, exists := store.Pmap[qpeerid]
-	toret := ""
+    toret := `{"error": "retrieve timeout"}`
 	message := ""
 	errCode := 500
 
-	if exists && docid != "" && force != "true" {
-		doc, err := store.PeerData.Get(docid)
-		if err != nil {
-			toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
-		} else {
-			toret = string(doc.Content)
-		}
-	} else {
-		//log.Error("Peer not found or forced, attempting to digest...")
+    go func() {
+        if exists && docid != "" && force != "true" {
+            doc, err := store.PeerData.Get(docid)
+            if err != nil {
+                toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
+            } else {
+                toret = string(doc.Content)
+            }
+        } else {
+            //log.Error("Peer not found or forced, attempting to digest...")
 
-		peerObj, err := voyager.DigestPeer(qpeerid, store)
-		if err != nil {
-			//log.Error(err)
-			store.Pmap[qpeerid] = ""
-			message = "failed"
-		}
-		peerObjID, err := store.PeerData.Insert(peerObj)
-		if err != nil {
-			//log.Error(err)
-			message = "failed"
-			toret = `{"error": "` + message + `"}`
-		}
+            peerObj, err := voyager.DigestPeer(qpeerid, store)
+            if err != nil {
+                //log.Error(err)
+                store.Pmap[qpeerid] = ""
+                message = "failed"
+            }
+            peerObjID, err := store.PeerData.Insert(peerObj)
+            if err != nil {
+                //log.Error(err)
+                message = "failed"
+                toret = `{"error": "` + message + `"}`
+            }
 
-		if message != "failed" {
-			store.Pmap[qpeerid] = peerObjID
-			go store.Listings.FlushSE()
-			store.Listings.Commit()
-			store.PeerData.Commit()
-			peerObjJSON, err := json.Marshal(peerObj)
-			if err != nil {
-				toret = `{"error": "` + err.Error() + `"}`
-			}
-			toret = string(peerObjJSON)
-		} else {
-			toret = `{"error": "Not found and failed to digest"}`
-			errCode = 404
-		}
+            if message != "failed" {
+                store.Pmap[qpeerid] = peerObjID
+                go store.Listings.FlushSE()
+                store.Listings.Commit()
+                store.PeerData.Commit()
+                peerObjJSON, err := json.Marshal(peerObj)
+                if err != nil {
+                    toret = `{"error": "` + err.Error() + `"}`
+                }
+                toret = string(peerObjJSON)
+            } else {
+                toret = `{"error": "Not found and failed to digest"}`
+                errCode = 404
+            }
+        }
+        if strings.Contains(toret, "error") {
+            cancel()
+        } else {
+            success <- struct{}{}
+        }
+    }()
 
-	}
-	if strings.Contains(toret, "error") {
-		http.Error(w, toret, errCode)
-	} else {
-		fmt.Fprint(w, toret)
-	}
+    select {
+    case <-success:
+        _, _ = fmt.Fprint(w, toret)
+    case <-ctx.Done():
+        http.Error(w, toret, errCode)
+    }
+
 }
 
 func HTTPPeers(w http.ResponseWriter, r *http.Request) {
@@ -142,29 +160,41 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peerID := r.URL.Query().Get("id")
-
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+    success := make(chan struct{})
 	message := "success"
-	peerObj, err := voyager.DigestPeer(peerID, store)
-	if err != nil {
-		// log.Error(err)
-		store.Pmap[peerID] = ""
-		message = "failed"
-	}
-	peerObjID, err := store.PeerData.Insert(peerObj)
-	if err != nil {
-		// panic(err)
-		message = "failed"
-	}
 
-	if message != "failed" {
-		store.Pmap[peerID] = peerObjID
-		go store.Listings.FlushSE()
-		store.Listings.Commit()
-		store.PeerData.Commit()
-	}
+    go func() {
+        peerID := r.URL.Query().Get("id")
+        peerObj, err := voyager.DigestPeer(peerID, store)
+        if err != nil {
+            // log.Error(err)
+            store.Pmap[peerID] = ""
+            message = "failed"
+            cancel()
+        }
+        peerObjID, err := store.PeerData.Insert(peerObj)
+        if err != nil {
+            // panic(err)
+            message = "failed"
+            cancel()
+        }
 
-	fmt.Fprint(w, "{\"result\": \""+message+"\"}")
+        if message != "failed" {
+            store.Pmap[peerID] = peerObjID
+            go store.Listings.FlushSE()
+            store.Listings.Commit()
+            store.PeerData.Commit()
+        }
+        success <- struct{}{}
+    }()
+
+    select {
+    case <-success:
+        _, _ = fmt.Fprint(w, "{\"result\": \""+message+"\"}")
+    case <-ctx.Done():
+        _, _ = fmt.Fprint(w, "{\"result\": \"failed\"}")
+    }
 }
 
 func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
