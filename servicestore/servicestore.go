@@ -81,7 +81,7 @@ func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 		store.Listings = listing
 	}
 
-	store.Listings.OverrideEvalEngine(LoadCustomEngine())
+    store.Listings.OverrideEvalEngine(LoadCustomEngine(&store))
 
 	return &store
 }

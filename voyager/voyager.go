@@ -22,6 +22,7 @@ var (
 	retryPeers map[string]int
 	log        *servicelogger.LogPrinter
 	store      *servicestore.MainManagedStorage
+    myPeerID   string
 )
 
 var ro = &grequests.RequestOptions{RequestTimeout: 70 * time.Second}
@@ -265,10 +266,27 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 }
 
 func IsPeerOnline(peerid string) bool {
+    if peerid == myPeerID {
+        return true
+    }
+
+    lastOnline, err := grequests.Get("http://localhost:4002/ipns/"+peerid+"/lastOnline", ro)
+    if err == nil {
+        ts, err := strconv.Atoi(string(lastOnline.Bytes()))
+        if err == nil {
+            if time.Now().Unix()-int64(ts) < 259200 {
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+
 	isOnline, err := grequests.Get("http://localhost:4002/ob/status/"+peerid+"?usecache=false", ro)
 	if err != nil {
 		return false
 	}
+
 	result := make(map[string]string)
 	isOnline.JSON(&result)
 	log.Debug(fmt.Sprintf("isPeerOnline: ", result))
@@ -282,7 +300,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 	peerStream = make(chan string, 1000)
 	retryPeers = make(map[string]int)
 
-	myPeerID := GetSelfPeerID()
+    myPeerID = GetSelfPeerID()
 	if myPeerID != "" {
 		peerStream <- myPeerID
 	}

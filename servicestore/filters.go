@@ -53,7 +53,7 @@ func like(a, b string) bool {
 }
 
 // LoadCustomEngine loads a custom gval.Language to extend the capabilities of the Filters.
-func LoadCustomEngine() gval.Language {
+func LoadCustomEngine(store *MainManagedStorage) gval.Language {
 	locMap := LoadLocationMap()
 	language := gval.Full(
 		gval.Function("contains", func(fullstr string, substr string) bool {
@@ -102,6 +102,16 @@ func LoadCustomEngine() gval.Language {
 				return false
 			}
 			return like(x, y)
+        }),
+
+        // `getProfile(doc.peerId)["age"]["min"] > 14`
+        gval.Function("getProfile", func(profileId string) map[string]interface{} {
+            profile := store.PeerData.Search(profileId)
+            if profile.Count == 0 {
+                return make(map[string]interface{})
+            }
+
+            return profile.Documents[0].ExportI()
 		}),
 	)
 	return language
