@@ -78,7 +78,11 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 	qpeerid := r.URL.Query().Get("id")
 
 	if qpeerid == "" {
-		qpeerid = voyager.GetSelfPeerID()
+		if voyager.MyPeerID == "" {
+			qpeerid = voyager.GetSelfPeerID()
+		} else {
+			qpeerid = voyager.MyPeerID
+		}
 	}
 
     ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
@@ -107,13 +111,15 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
                 store.Pmap[qpeerid] = ""
                 message = "failed"
             }
+
             peerObjID, err := store.PeerData.Insert(peerObj)
-            if err != nil {
-                //log.Error(err)
+
+			if err != nil {
                 message = "failed"
                 toret = `{"error": "` + message + `"}`
             }
 
+			// If nothing fails
             if message != "failed" {
                 store.Pmap[qpeerid] = peerObjID
                 go store.Listings.FlushSE()

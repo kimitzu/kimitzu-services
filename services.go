@@ -1,20 +1,21 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
-	"path"
-	"strconv"
-	"time"
+    "flag"
+    "fmt"
+    "log"
+    "path"
+    "strconv"
+    "time"
 
-	"github.com/djali-foundation/djali-services/api"
-	"github.com/mitchellh/go-homedir"
+    "github.com/mitchellh/go-homedir"
 
-	"github.com/djali-foundation/djali-services/location"
-	"github.com/djali-foundation/djali-services/servicelogger"
-	"github.com/djali-foundation/djali-services/servicestore"
-	"github.com/djali-foundation/djali-services/voyager"
+    "github.com/djali-foundation/djali-services/api"
+
+    "github.com/djali-foundation/djali-services/location"
+    "github.com/djali-foundation/djali-services/servicelogger"
+    "github.com/djali-foundation/djali-services/servicestore"
+    "github.com/djali-foundation/djali-services/voyager"
 )
 
 var (

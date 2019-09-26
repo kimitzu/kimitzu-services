@@ -22,7 +22,7 @@ var (
 	retryPeers map[string]int
 	log        *servicelogger.LogPrinter
 	store      *servicestore.MainManagedStorage
-    myPeerID   string
+    MyPeerID   string
 )
 
 var ro = &grequests.RequestOptions{RequestTimeout: 70 * time.Second}
@@ -266,7 +266,7 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 }
 
 func IsPeerOnline(peerid string) bool {
-    if peerid == myPeerID {
+    if peerid == MyPeerID {
         return true
     }
 
@@ -300,9 +300,9 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 	peerStream = make(chan string, 1000)
 	retryPeers = make(map[string]int)
 
-    myPeerID = GetSelfPeerID()
-	if myPeerID != "" {
-		peerStream <- myPeerID
+    MyPeerID = GetSelfPeerID()
+    if MyPeerID != "" {
+        peerStream <- MyPeerID
 	}
 
 	ensureDir(path.Join(store.StorePath, "images", ".test"))
@@ -342,7 +342,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 
 					d, err := DigestPeer(peer.ID, store)
 					if err != nil {
-						log.Error(fmt.Sprintln("Failed to refresh ", d.ID, err))
+                        log.Error(fmt.Sprintln("Failed to refresh ", peer.ID, err))
 					} else {
 						d.LastPing = time.Now().Unix()
 						store.PeerData.Update(peer.ID, d)
@@ -351,7 +351,7 @@ func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainM
 					log.Debug(fmt.Sprintln("Finished refreshing", peer.ID))
 
 				} else if (time.Now().Unix() - peer.LastPing) > 259200 {
-					log.Debug(fmt.Sprintln("Disposing Peer ", peer.ID, "\nDeadline: ", time.Now().Unix(), peer.LastPing, (time.Now().Unix() - peer.LastPing)))
+                    log.Debug(fmt.Sprintln("Disposing Peer ", peer.ID, "\nDeadline: ", time.Now().Unix(), peer.LastPing, time.Now().Unix()-peer.LastPing))
 					clearListings(peer.ID)
 				}
 			}
