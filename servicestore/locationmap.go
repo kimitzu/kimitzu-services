@@ -3,11 +3,13 @@ package servicestore
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+
+	"github.com/gobuffalo/packr/v2"
 )
 
 func LoadLocationMap() map[string]map[string][]float64 {
-	fStream, err := ioutil.ReadFile("./locationmap.json")
+	box := packr.New("external", "../external")
+	fStream, err := box.Find("locationmap.json")
 	if err != nil {
 		fmt.Printf("Failed Reading file %v\n", err)
 	}

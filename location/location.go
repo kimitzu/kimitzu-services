@@ -2,6 +2,7 @@ package location
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gobuffalo/packr/v2"
 
 	"github.com/djali-foundation/djali-services/servicelogger"
 )
@@ -32,15 +35,12 @@ type LocationDistance struct {
 
 func InitializeLocationService(log *servicelogger.LogPrinter) []Location {
 	log.Info("Initializing")
-	// fstream, err := ioutil.ReadFile("location_data.json")
-	// if err != nil {
-	// 	fmt.Errorf("Failed Reading file %s", err)
-	// }
-	fzip, err := zip.OpenReader("./locdat.zip")
+	box := packr.New("external2", "../external")
+	fStream, err := box.Find("locdat.zip")
+	fzip, err := zip.NewReader(bytes.NewReader(fStream), int64(len(fStream)))
 	if err != nil {
 		panic(fmt.Errorf("Failed reading location data[1]: %v", err))
 	}
-	defer fzip.Close()
 
 	locdat := fzip.File[0]
 	ffile, err := locdat.Open()
