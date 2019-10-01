@@ -4,20 +4,24 @@
 * Voyager Crawler Service
 * Search Service
 
+## Documentation
+API documentation can be found in [Postman API Docs](https://documenter.getpostman.com/view/7522385/SVtN5CZU?version=latest).
+
 # Installation
 ```bash
-go get gitlab.com/kingsland-team-ph/djali/djali-services.git
+go get github.com/djali-foundation/djali-services
 ```
 
 # Run
 ```bash
-go run bakedflood.go
+go run services
 ```
 
 To enabled logging (loglevels 1 to 5)
 ```bash
-go run bakedflood.go -log <logLevel>
+go run services.go -log <logLevel>
 ```
+
 
 # Testing
 ```bash

@@ -53,7 +53,7 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) bool {
 func HTTPFlushAll(w http.ResponseWriter, r *http.Request) {
 	store.Listings.FlushSE()
 	store.PeerData.FlushSE()
-	fmt.Fprint(w, `{"result": "ok"}`)
+    _, _ = fmt.Fprint(w, `{"result": "ok"}`)
 }
 
 func HTTPPeerGetListings(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +64,9 @@ func HTTPPeerGetListings(w http.ResponseWriter, r *http.Request) {
 	result := store.Listings.Search("")
 	jsn, err := result.ExportJSONArray()
 	if err == nil {
-		fmt.Fprint(w, jsn)
+        _, _ = fmt.Fprint(w, jsn)
 	} else {
-		fmt.Fprint(w, `{"error": "notFound"}`)
+        _, _ = fmt.Fprint(w, `{"error": "notFound"}`)
 	}
 }
 
@@ -89,18 +89,18 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
     success := make(chan struct{})
 
 	force := r.URL.Query().Get("force")
-	docid, exists := store.Pmap[qpeerid]
-    toret := `{"error": "retrieve timeout"}`
+    docID, exists := store.Pmap[qpeerid]
+    toReturn := `{"error": "retrieve timeout"}`
 	message := ""
 	errCode := 500
 
     go func() {
-        if exists && docid != "" && force != "true" {
-            doc, err := store.PeerData.Get(docid)
+        if exists && docID != "" && force != "true" {
+            doc, err := store.PeerData.Get(docID)
             if err != nil {
-                toret = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
+                toReturn = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
             } else {
-                toret = string(doc.Content)
+                toReturn = string(doc.Content)
             }
         } else {
             //log.Error("Peer not found or forced, attempting to digest...")
@@ -116,7 +116,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 
 			if err != nil {
                 message = "failed"
-                toret = `{"error": "` + message + `"}`
+                toReturn = `{"error": "` + message + `"}`
             }
 
 			// If nothing fails
@@ -127,15 +127,15 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
                 store.PeerData.Commit()
                 peerObjJSON, err := json.Marshal(peerObj)
                 if err != nil {
-                    toret = `{"error": "` + err.Error() + `"}`
+                    toReturn = `{"error": "` + err.Error() + `"}`
                 }
-                toret = string(peerObjJSON)
+                toReturn = string(peerObjJSON)
             } else {
-                toret = `{"error": "Not found and failed to digest"}`
+                toReturn = `{"error": "Not found and failed to digest"}`
                 errCode = 404
             }
         }
-        if strings.Contains(toret, "error") {
+        if strings.Contains(toReturn, "error") {
             cancel()
         } else {
             success <- struct{}{}
@@ -144,9 +144,9 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 
     select {
     case <-success:
-        _, _ = fmt.Fprint(w, toret)
+        _, _ = fmt.Fprint(w, toReturn)
     case <-ctx.Done():
-        http.Error(w, toret, errCode)
+        http.Error(w, toReturn, errCode)
     }
 
 }
@@ -158,7 +158,7 @@ func HTTPPeers(w http.ResponseWriter, r *http.Request) {
 
 	peers := store.PeerData.Search("")
 	data, _ := peers.ExportJSONArray()
-	fmt.Fprint(w, string(data))
+    _, _ = fmt.Fprint(w, string(data))
 }
 
 func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
