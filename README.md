@@ -7,6 +7,10 @@
 ## Documentation
 API documentation can be found in [Postman API Docs](https://documenter.getpostman.com/view/7522385/SVtN5CZU?version=latest).
 
+## Todos
+* Rewrite the entire voyager part of the application, or at least refactor.
+* Potentially get rid of `/models` since the services doesn't need to know the entire structure of the listings/peers.
+
 # Installation
 ```bash
 go get github.com/djali-foundation/djali-services
@@ -27,3 +31,4 @@ go run services.go -log <logLevel>
 ```bash
 go test ./... -v
 ```
+
