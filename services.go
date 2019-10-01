@@ -13,7 +13,7 @@ import (
     "github.com/djali-foundation/djali-services/api"
 
     "github.com/djali-foundation/djali-services/location"
-    "github.com/djali-foundation/djali-services/servicelogger"
+	"github.com/djali-foundation/djali-services/loggy"
     "github.com/djali-foundation/djali-services/servicestore"
     "github.com/djali-foundation/djali-services/voyager"
 )
@@ -40,7 +40,7 @@ func init() {
 
 func main() {
 	log.SetFlags(0) // Disables internal logging
-	srvLog := servicelogger.LogManager{}
+	srvLog := loggy.LogManager{}
 	go srvLog.Start(LogLevel)
 
 	// Deadlock prevention

@@ -15,7 +15,7 @@ import (
 
 	"github.com/djali-foundation/djali-services/location"
 
-	"github.com/djali-foundation/djali-services/servicelogger"
+	"github.com/djali-foundation/djali-services/loggy"
 	"github.com/djali-foundation/djali-services/servicestore"
 	"github.com/djali-foundation/djali-services/voyager"
 
@@ -420,7 +420,7 @@ func AttachStore(store_ *servicestore.MainManagedStorage) {
 	store = store_
 }
 
-func RunHTTPService(log *servicelogger.LogPrinter) {
+func RunHTTPService(log *loggy.LogPrinter) {
 	log.Info("Starting HTTP Service")
 
 	http.HandleFunc("/djali/location/query", location.HTTPLocationQueryHandler)

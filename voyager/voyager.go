@@ -13,14 +13,14 @@ import (
 	"github.com/levigross/grequests"
 
 	"github.com/djali-foundation/djali-services/models"
-	"github.com/djali-foundation/djali-services/servicelogger"
+	"github.com/djali-foundation/djali-services/loggy"
 	"github.com/djali-foundation/djali-services/servicestore"
 )
 
 var (
 	peerStream chan string
 	retryPeers map[string]int
-	log        *servicelogger.LogPrinter
+	log        *loggy.LogPrinter
 	store      *servicestore.MainManagedStorage
     MyPeerID   string
 )
@@ -289,12 +289,12 @@ func IsPeerOnline(peerid string) bool {
 
 	result := make(map[string]string)
 	isOnline.JSON(&result)
-	log.Debug(fmt.Sprintf("isPeerOnline: ", result))
+	log.Debug("isPeerOnline: ", result)
 	return result["status"] == "online"
 }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
-func RunVoyagerService(logP *servicelogger.LogPrinter, store *servicestore.MainManagedStorage) {
+func RunVoyagerService(logP *loggy.LogPrinter, store *servicestore.MainManagedStorage) {
 	log = logP
 	log.Info("Starting Voyager Service")
 	peerStream = make(chan string, 1000)
