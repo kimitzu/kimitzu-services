@@ -211,9 +211,9 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		go downloadFile(listing.Thumbnail.Tiny)
 	}
 
-	log.Verbose(fmt.Sprintf("Committing Listings", peerJSON["name"]))
+    log.Verbose("Committing Listings", peerJSON["name"])
 	store.Listings.Commit()
-	log.Verbose(fmt.Sprint(" id  > ", peerJSON["name"], len(peerListings)))
+    log.Verbose(" id  > ", peerJSON["name"], len(peerListings))
 	return &models.Peer{
 		ID:       peer,
 		RawMap:   peerJSON,
@@ -241,20 +241,22 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 		if val, exists := retryPeers[peer]; exists && val >= 5 {
 			continue
 		}
-		if _, exists := store.Pmap[peer]; !exists {
+        if _, exists := store.PMap[peer]; !exists {
 			log.Debug("Digesting Peer: " + peer)
 			log.Debug("Found Peer: " + peer)
 			peerObj, err := DigestPeer(peer, store)
 			if err != nil {
 				log.Error(err)
-				store.Pmap[peer] = ""
+                //store.PMap[peer] = ""
+                store.PMapSet(peer, "")
 				continue
 			}
 			peerObjID, err := store.PeerData.Insert(peerObj)
 			if err != nil {
 				panic(err)
 			}
-			store.Pmap[peer] = peerObjID
+            //store.PMap[peer] = peerObjID
+            store.PMapSet(peer, peerObjID)
 			store.Listings.Commit()
 			store.PeerData.Commit()
 		} else {
@@ -314,8 +316,8 @@ func RunVoyagerService(logP *loggy.LogPrinter, store *servicestore.MainManagedSt
 	for _, doc := range peers.Documents {
 		interfpeer := models.Peer{}
 		doc.Export(&interfpeer)
-
-		store.Pmap[interfpeer.ID] = doc.ID
+        // store.PMap[interfpeer.ID] = doc.ID
+        store.PMapSet(interfpeer.ID, doc.ID)
 	}
 
 	// Digests found peers

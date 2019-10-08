@@ -3,6 +3,7 @@ package servicestore
 import (
 	"fmt"
 	"path"
+    "sync"
 
 	gomenasai "github.com/nokusukun/go-menasai/manager"
 
@@ -16,12 +17,25 @@ type MainStorage struct {
 }
 
 // MainManagedStorage holds the storage stuff
-//	Pmap is the peer mapping of the peerID to the chunk peerDocumentID
+//	PMap is the peer mapping of the peerID to the chunk peerDocumentID
 type MainManagedStorage struct {
-	Pmap      map[string]string
+    PMap      map[string]string
+    PMapLock  *sync.RWMutex
 	PeerData  *gomenasai.Gomenasai
 	Listings  *gomenasai.Gomenasai
 	StorePath string
+}
+
+func (m *MainManagedStorage) SafePMapModify(function func()) {
+    m.PMapLock.Lock()
+    function()
+    m.PMapLock.Unlock()
+}
+
+func (m *MainManagedStorage) PMapSet(id, val string) {
+    m.SafePMapModify(func() {
+        m.PMap[id] = val
+    })
 }
 
 // InitializeManagedStorage - Initializes and returns a MainStorage instance,
@@ -29,7 +43,8 @@ type MainManagedStorage struct {
 // 		storage for the listings and Peer Data
 func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 	store := MainManagedStorage{}
-	store.Pmap = make(map[string]string)
+    store.PMapLock = &sync.RWMutex{}
+    store.PMap = make(map[string]string)
 	store.StorePath = rootPath
 
 	peerStorePath := path.Join(rootPath, "data", "peers")

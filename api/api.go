@@ -30,6 +30,7 @@ const (
     TIMEOUT = time.Second * 30
 )
 
+
 type APIListResult struct {
 	Count     int           `json:"count"`
 	Limit     int           `json:"limit"`
@@ -89,7 +90,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
     success := make(chan struct{})
 
 	force := r.URL.Query().Get("force")
-    docID, exists := store.Pmap[qpeerid]
+    docID, exists := store.PMap[qpeerid]
     toReturn := `{"error": "retrieve timeout"}`
 	message := ""
 	errCode := 500
@@ -103,12 +104,11 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
                 toReturn = string(doc.Content)
             }
         } else {
-            //log.Error("Peer not found or forced, attempting to digest...")
-
             peerObj, err := voyager.DigestPeer(qpeerid, store)
             if err != nil {
-                //log.Error(err)
-                store.Pmap[qpeerid] = ""
+                store.SafePMapModify(func() {
+                    store.PMap[qpeerid] = ""
+                })
                 message = "failed"
             }
 
@@ -121,7 +121,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 
 			// If nothing fails
             if message != "failed" {
-                store.Pmap[qpeerid] = peerObjID
+                store.PMap[qpeerid] = peerObjID
                 go store.Listings.FlushSE()
                 store.Listings.Commit()
                 store.PeerData.Commit()
@@ -175,7 +175,8 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
         peerObj, err := voyager.DigestPeer(peerID, store)
         if err != nil {
             // log.Error(err)
-            store.Pmap[peerID] = ""
+            // store.PMap[peerID] = ""
+            store.PMapSet(peerID, "")
             message = "failed"
             cancel()
         }
@@ -187,7 +188,8 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
         }
 
         if message != "failed" {
-            store.Pmap[peerID] = peerObjID
+            //store.PMap[peerID] = peerObjID
+            store.PMapSet(peerID, peerObjID)
             go store.Listings.FlushSE()
             store.Listings.Commit()
             store.PeerData.Commit()
