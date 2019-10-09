@@ -216,6 +216,11 @@ func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if store.PeerData.Size() == 0 {
+		http.Error(w, `{"error": "empty database"}`, 204)
+		return
+	}
+
 	params := &models.AdvancedSearchQuery{}
 	err = json.Unmarshal(b, &params)
 	if err != nil {
@@ -319,6 +324,11 @@ func HTTPListingSearch(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	if err != nil {
 		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	if store.Listings.Size() == 0 {
+		http.Error(w, `{"error": "empty database"}`, 204)
 		return
 	}
 
