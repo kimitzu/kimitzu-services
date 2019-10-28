@@ -1,7 +1,7 @@
 package api
 
 import (
-    "context"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,11 +11,12 @@ import (
 	"path"
 	"strconv"
 	"strings"
-    "time"
+	"time"
+
+	"github.com/nokusukun/particles/roggy"
 
 	"github.com/djali-foundation/djali-services/location"
 
-	"github.com/djali-foundation/djali-services/loggy"
 	"github.com/djali-foundation/djali-services/servicestore"
 	"github.com/djali-foundation/djali-services/voyager"
 
@@ -432,7 +433,7 @@ func AttachStore(store_ *servicestore.MainManagedStorage) {
 	store = store_
 }
 
-func RunHTTPService(log *loggy.LogPrinter) {
+func RunHTTPService(log *roggy.LogPrinter) {
 	log.Info("Starting HTTP Service")
 
 	http.HandleFunc("/djali/location/query", location.HTTPLocationQueryHandler)

@@ -12,8 +12,7 @@ import (
 	"strings"
 
 	"github.com/gobuffalo/packr/v2"
-
-	"github.com/djali-foundation/djali-services/loggy"
+    "github.com/nokusukun/particles/roggy"
 )
 
 var (
@@ -33,7 +32,7 @@ type LocationDistance struct {
 	Dist float64  `json:"distance"`
 }
 
-func InitializeLocationService(log *loggy.LogPrinter) []Location {
+func InitializeLocationService(log *roggy.LogPrinter) []Location {
 	log.Info("Initializing")
 	box := packr.New("external2", "../external")
 	fStream, err := box.Find("locdat.zip")
@@ -113,7 +112,7 @@ func HTTPLocationQueryHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func RunLocationService(log *loggy.LogPrinter) {
+func RunLocationService(log *roggy.LogPrinter) {
 	obj = InitializeLocationService(log)
 }
 
