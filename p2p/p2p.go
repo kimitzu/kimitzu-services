@@ -18,12 +18,13 @@ import (
 )
 
 var log = roggy.Printer("p2p")
+var Sat *satellite.Satellite
 
-func Bootstrap(cdae *configs.Daemon, csat *config.Satellite) {
+func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, killsig chan int) {
 
     //todo: move most of this in the services main function
     log.Info("Starting Particle Daemon")
-    // notices
+    printSplash()
 
     log.Debug(roggy.Clr("TURNING ON DEBUG LOGS WILL SEVERELY IMPACT PERFORMANCE", 1))
 
@@ -47,11 +48,11 @@ func Bootstrap(cdae *configs.Daemon, csat *config.Satellite) {
         log.Error("Failed to get keyPair:", err)
         log.Error("Your key might not exist, try with the -generate flag")
     }
-    sat := satellite.BuildNetwork(csat, keyPair)
+    Sat = satellite.BuildNetwork(csat, keyPair)
 
     if cdae.DialTo != "" {
         log.Info("Connecting s/kad bootstrap at ", cdae.DialTo)
-        peer, err := sat.Node.Dial(cdae.DialTo)
+        peer, err := Sat.Node.Dial(cdae.DialTo)
         if err != nil {
             log.Errorf("Failed to dial to s/kad bootstrap")
         }
@@ -59,7 +60,7 @@ func Bootstrap(cdae *configs.Daemon, csat *config.Satellite) {
         skademlia.WaitUntilAuthenticated(peer)
         log.Infof("Bootstrapped to: %v", satellite.GetPeerID(peer))
     }
-    bootstrapEvents(sat, db)
+    bootstrapEvents(Sat, db)
 
     // API
     //if cdae.ApiListen != "" {
@@ -76,11 +77,11 @@ func Bootstrap(cdae *configs.Daemon, csat *config.Satellite) {
             log.Error("failed to close database", err)
         }
         log.Info("Killing node...")
-        sat.Node.Kill()
+        Sat.Node.Kill()
         roggy.Wait()
     }()
 
-    select {}
+    <-killsig
 }
 
 func getKeys(path string, newKeys bool) (*skademlia.Keypair, error) {

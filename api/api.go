@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/nokusukun/particles/roggy"
 
 	"github.com/djali-foundation/djali-services/location"
@@ -433,29 +434,29 @@ func AttachStore(store_ *servicestore.MainManagedStorage) {
 	store = store_
 }
 
-func RunHTTPService(log *roggy.LogPrinter) {
+func AttachAPI(log *roggy.LogPrinter, router *mux.Router) {
 	log.Info("Starting HTTP Service")
 
-	http.HandleFunc("/djali/location/query", location.HTTPLocationQueryHandler)
-	http.HandleFunc("/djali/location/codesfrom", location.HTTPLocationCodesfromHandler)
+	router.HandleFunc("/djali/location/query", location.HTTPLocationQueryHandler)
+	router.HandleFunc("/djali/location/codesfrom", location.HTTPLocationCodesfromHandler)
 
-	http.HandleFunc("/djali/peers/listings", HTTPPeerGetListings)
-	http.HandleFunc("/djali/peer/get", HTTPPeerGet)
-	http.HandleFunc("/djali/peers", HTTPPeers)
-	http.HandleFunc("/djali/peer/add", HTTPPeerAdd)
-	http.HandleFunc("/djali/peer/search", HTTPPeerSearch)
+	router.HandleFunc("/djali/peers/listings", HTTPPeerGetListings)
+	router.HandleFunc("/djali/peer/get", HTTPPeerGet)
+	router.HandleFunc("/djali/peers", HTTPPeers)
+	router.HandleFunc("/djali/peer/add", HTTPPeerAdd)
+	router.HandleFunc("/djali/peer/search", HTTPPeerSearch)
 
-	http.HandleFunc("/djali/listing", HTTPListing)
-	http.HandleFunc("/djali/search", HTTPListingSearch)
+	router.HandleFunc("/djali/listing", HTTPListing)
+	router.HandleFunc("/djali/search", HTTPListingSearch)
 
-	http.HandleFunc("/djali/media", HTTPMedia)
+	router.HandleFunc("/djali/media", HTTPMedia)
 
-	http.HandleFunc("/authenticate", Authenticate)
+	router.HandleFunc("/authenticate", Authenticate)
 
-	http.HandleFunc("/debug/flush", HTTPFlushAll)
+	router.HandleFunc("/debug/flush", HTTPFlushAll)
 
-	log.Info("Serving at 0.0.0.0:8109")
-	http.ListenAndServe(":8109", nil)
+	//log.Info("Serving at 0.0.0.0:8109")
+	//http.ListenAndServe(":8109", nil)
 }
 
 func fileResponder(file *os.File, w http.ResponseWriter) {

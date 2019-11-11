@@ -25,8 +25,8 @@ type WriteRequest struct {
     Content     interface{} `json:"content"`
 }
 
-func generateAPI(sat *satellite.Satellite) *mux.Router {
-    router := mux.NewRouter()
+func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
+    // router := mux.NewRouter()
 
     router.HandleFunc("/debug/pprof/", pprof.Index)
     router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)

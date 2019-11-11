@@ -4,9 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"path"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/mitchellh/go-homedir"
 	"github.com/nokusukun/particles/config"
 	"github.com/nokusukun/particles/roggy"
@@ -21,7 +23,7 @@ import (
 )
 
 var (
-	logger     = roggy.Printer("particled")
+	logger     = roggy.Printer("services")
 	confSat    = config.Satellite{}
 	confDaemon = configs.Daemon{}
 )
@@ -29,18 +31,18 @@ var (
 
 
 func init() {
-	flag.UintVar(&confSat.Port, "p2p-port", 3000, "Listen for peers in specified port")
+	flag.UintVar(&confSat.Port, "p2p-port", 9009, "Listen for peers in specified port")
 	flag.StringVar(&confSat.Host, "p2p-host", "127.0.0.1", "Listen for peers in this host")
 	flag.BoolVar(&confSat.DisableUPNP, "p2p-noupnp", false, "disable UPNP")
 
-	flag.StringVar(&confDaemon.ArgLogLevel, "log", "0", "Port to listen")
+	//flag.StringVar(&confDaemon.ArgLogLevel, "log", "0", "Port to listen")
 	flag.StringVar(&confDaemon.DataPath, "data", "&home", "Folder to store location data")
 
 	flag.StringVar(&confDaemon.DialTo, "dial", "", "Bootstrap s/kad from this peer")
-	flag.StringVar(&confDaemon.ApiListen, "api", "", "Enable the api and serve to this address")
-	flag.StringVar(&confDaemon.DatabasePath, "dbpath", "", "Database Path")
-	flag.StringVar(&confDaemon.KeyPath, "key", "", "Read/write key from/to path")
-	flag.BoolVar(&confDaemon.GenerateNewKeys, "generate", false, "Generate new keys")
+	flag.StringVar(&confDaemon.ApiListen, "api", "localhost:8109", "Enable the api and serve to this address")
+	flag.StringVar(&confDaemon.DatabasePath, "dbpath", "&home", "Database Path")
+	flag.StringVar(&confDaemon.KeyPath, "key", "&home", "Read/write key from/to path")
+	flag.BoolVar(&confDaemon.GenerateNewKeys, "generate", true, "Generate new keys")
 	flag.BoolVar(&confDaemon.ShowHelp, "h", false, "Show help")
 	flag.IntVar(&roggy.LogLevel, "log", 2, "log level 0~5")
 
@@ -49,6 +51,14 @@ func init() {
 	if confDaemon.DataPath == "&home" {
 		home, _ := homedir.Dir()
 		confDaemon.DataPath = path.Join(home, "djali")
+	}
+
+	if confDaemon.DatabasePath == "&home" {
+		confDaemon.DatabasePath = path.Join(confDaemon.DataPath, "p2p")
+	}
+
+	if confDaemon.KeyPath == "&home" {
+		confDaemon.KeyPath = path.Join(confDaemon.DataPath, "p2pkeys")
 	}
 
 	confDaemon.Version = "0.1.2"
@@ -64,16 +74,27 @@ func main() {
 
 	log.Info(fmt.Sprintf("Djali Services Daemon (%v)", confDaemon.Version))
 	log.Info(" --- --- --- --- --- ")
-	log.Info("Log Level: " + confDaemon.ArgLogLevel)
+	log.Infof("Log Level: %v", roggy.LogLevel)
 	log.Info("Starting Services")
 
 	store := servicestore.InitializeManagedStorage(confDaemon.DataPath)
+	p2pKillSig := make(chan int, 1)
+
 
 	// test(&srvLog, log, store)
+	apiRouter := mux.NewRouter()
+
 	time.Sleep(time.Second * 10)
-	go p2p.Bootstrap(&confDaemon, &confSat)
+	go p2p.Bootstrap(&confDaemon, &confSat, p2pKillSig)
 	go voyager.RunVoyagerService(log.Sub("voyager"), store)
 	location.RunLocationService(log.Sub("location"))
+
+	p2p.AttachAPI(p2p.Sat, apiRouter)
 	api.AttachStore(store)
-	api.RunHTTPService(log.Sub("api"))
+	api.AttachAPI(log.Sub("api"), apiRouter)
+
+	log.Infof("Running API on %v", confDaemon.ApiListen)
+	log.Error(http.ListenAndServe(confDaemon.ApiListen, apiRouter))
+
+	select {}
 }
