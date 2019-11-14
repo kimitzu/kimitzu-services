@@ -28,8 +28,6 @@ var (
 	confDaemon = configs.Daemon{}
 )
 
-
-
 func init() {
 	flag.UintVar(&confSat.Port, "p2p-port", 9009, "Listen for peers in specified port")
 	flag.StringVar(&confSat.Host, "p2p-host", "127.0.0.1", "Listen for peers in this host")
@@ -39,7 +37,7 @@ func init() {
 	flag.StringVar(&confDaemon.DataPath, "data", "&home", "Folder to store location data")
 
 	flag.StringVar(&confDaemon.DialTo, "dial", "", "Bootstrap s/kad from this peer")
-	flag.StringVar(&confDaemon.ApiListen, "api", "localhost:8109", "Enable the api and serve to this address")
+	flag.StringVar(&confDaemon.ApiListen, "api", "0.0.0.0:8109", "Enable the api and serve to this address")
 	flag.StringVar(&confDaemon.DatabasePath, "dbpath", "&home", "Database Path")
 	flag.StringVar(&confDaemon.KeyPath, "key", "&home", "Read/write key from/to path")
 	flag.BoolVar(&confDaemon.GenerateNewKeys, "generate", true, "Generate new keys")
@@ -79,7 +77,6 @@ func main() {
 
 	store := servicestore.InitializeManagedStorage(confDaemon.DataPath)
 	p2pKillSig := make(chan int, 1)
-
 
 	// test(&srvLog, log, store)
 	apiRouter := mux.NewRouter()
