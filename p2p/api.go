@@ -39,7 +39,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
     router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
     router.Handle("/debug/pprof/block", pprof.Handler("block"))
 
-    router.HandleFunc("/peers", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/peers", func(w http.ResponseWriter, r *http.Request) {
         fmt.Println("Retieving Peers")
         var ids []string
 
@@ -50,53 +50,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         _ = json.NewEncoder(w).Encode(ids)
     }).Methods("GET")
 
-    router.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
-        request := WriteRequest{}
-
-        _ = json.NewDecoder(r.Body).Decode(&request)
-
-        var errCode string
-        p, exists := sat.Peers[request.Destination]
-        if exists {
-            err := p.SendMessage(satellite.Packet{
-                PacketType: satellite.PType_Message,
-                Namespace:  request.Namespace,
-                Payload:    request.Content,
-            })
-            if err != nil {
-                errCode = fmt.Sprintf("failed to write: %v", err)
-            }
-        } else {
-            errCode = fmt.Sprintf("peer does not exist: %v", request.Destination)
-        }
-
-        _ = json.NewEncoder(w).Encode(map[string]interface{}{
-            "error": errCode,
-        })
-    })
-
-    router.HandleFunc("/broadcast", func(w http.ResponseWriter, r *http.Request) {
-        request := WriteRequest{}
-
-        _ = json.NewDecoder(r.Body).Decode(&request)
-
-        var errCode string
-
-        err := skademlia.Broadcast(sat.Node, satellite.Packet{
-            PacketType: satellite.PType_Broadcast,
-            Namespace:  request.Namespace,
-            Payload:    request.Content,
-        })
-        if err != nil {
-            errCode = fmt.Sprintf("failed to write: %v", err)
-        }
-
-        _ = json.NewEncoder(w).Encode(map[string]interface{}{
-            "error": errCode,
-        })
-    })
-
-    router.HandleFunc("/broadcast_rating", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/broadcast_rating", func(w http.ResponseWriter, r *http.Request) {
         rat := Rating{}
 
         var errCode string
@@ -127,7 +81,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         })
     })
 
-    router.HandleFunc("/ratings/{peer}/{ids}", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/ratings/{peer}/{ids}", func(w http.ResponseWriter, r *http.Request) {
 
         vars := mux.Vars(r)
         var errCode string
@@ -157,7 +111,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         })
     })
 
-    router.HandleFunc("/seekratings/{ids}", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/seekratings/{ids}", func(w http.ResponseWriter, r *http.Request) {
 
         vars := mux.Vars(r)
         var errCode string

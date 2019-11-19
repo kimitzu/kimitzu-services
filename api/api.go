@@ -124,9 +124,9 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 			// If nothing fails
             if message != "failed" {
                 store.PMap[qpeerid] = peerObjID
-                go store.Listings.FlushSE()
                 store.Listings.Commit()
                 store.PeerData.Commit()
+
                 peerObjJSON, err := json.Marshal(peerObj)
                 if err != nil {
                     toReturn = `{"error": "` + err.Error() + `"}`
