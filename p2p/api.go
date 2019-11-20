@@ -50,7 +50,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         _ = json.NewEncoder(w).Encode(ids)
     }).Methods("GET")
 
-    router.HandleFunc("/p2p/broadcast_rating", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/ratings/publish", func(w http.ResponseWriter, r *http.Request) {
         rat := Rating{}
 
         var errCode string
@@ -81,7 +81,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         })
     })
 
-    router.HandleFunc("/p2p/ratings/{peer}/{ids}", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/ratings/get/{peer}/{ids}", func(w http.ResponseWriter, r *http.Request) {
 
         vars := mux.Vars(r)
         var errCode string
@@ -111,7 +111,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         })
     })
 
-    router.HandleFunc("/p2p/seekratings/{ids}", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/ratings/seek-sync/{ids}", func(w http.ResponseWriter, r *http.Request) {
 
         vars := mux.Vars(r)
         var errCode string
