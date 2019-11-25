@@ -110,9 +110,38 @@ func LoadCustomEngine(store *MainManagedStorage) gval.Language {
             if profile.Count == 0 {
                 return make(map[string]interface{})
             }
-
             return profile.Documents[0].ExportI()
 		}),
+
+        gval.Function("getPropAsBool", func(fields []map[string]string, target string) bool {
+            for _, field := range fields {
+                if prop, ok := field["label"]; ok && prop == target {
+                    val, _ := strconv.ParseBool(field["value"])
+                    return val
+                }
+            }
+            return false
+        }),
+
+        gval.Function("getPropAsString", func(fields []map[string]string, target string) string {
+            for _, field := range fields {
+                if prop, ok := field["label"]; ok && prop == target {
+                    return field["value"]
+                }
+            }
+            return ""
+        }),
+
+        gval.Function("getPropAsInt", func(fields []map[string]string, target string) int {
+            for _, field := range fields {
+                if prop, ok := field["label"]; ok && prop == target {
+                    val, _ := strconv.Atoi(field["value"])
+                    return val
+                }
+            }
+            return 0
+        }),
+
 	)
 	return language
 }
