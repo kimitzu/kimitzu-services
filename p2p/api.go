@@ -50,7 +50,9 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         _ = json.NewEncoder(w).Encode(ids)
     }).Methods("GET")
 
-    router.HandleFunc("/p2p/ratings/publish", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/ratings/publish/{orderid}", func(w http.ResponseWriter, r *http.Request) {
+        // orderID := mux.Vars(r)["orderid"]
+
         rat := Rating{}
 
         var errCode string
