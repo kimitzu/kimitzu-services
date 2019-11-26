@@ -30,7 +30,7 @@ var (
 
 func init() {
 	flag.UintVar(&confSat.Port, "p2p-port", 9009, "Listen for peers in specified port")
-	flag.StringVar(&confSat.Host, "p2p-host", "127.0.0.1", "Listen for peers in this host")
+	flag.StringVar(&confSat.Host, "p2p-host", "0.0.0.0", "Listen for peers in this host")
 	flag.BoolVar(&confSat.DisableUPNP, "p2p-noupnp", false, "disable UPNP")
 
 	//flag.StringVar(&confDaemon.ArgLogLevel, "log", "0", "Port to listen")
