@@ -14,6 +14,8 @@ import (
     "github.com/json-iterator/go"
 
     "github.com/nokusukun/particles/satellite"
+
+    "github.com/djali-foundation/djali-services/models"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -50,10 +52,22 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         _ = json.NewEncoder(w).Encode(ids)
     }).Methods("GET")
 
-    router.HandleFunc("/p2p/ratings/publish/{orderid}", func(w http.ResponseWriter, r *http.Request) {
-        // orderID := mux.Vars(r)["orderid"]
+    router.HandleFunc("/p2p/ratings/publish/{type}", func(w http.ResponseWriter, r *http.Request) {
+        contract := new(models.Contract)
+        publishType := mux.Vars(r)["type"]
 
-        rat := Rating{}
+        var rating *Rating
+
+        if publishType == "vendor" {
+            rating = VendorRatingFromContract(contract)
+        } else if publishType == "buyer" {
+            rating = BuyerRatingFromContract(contract)
+        } else {
+            _ = json.NewEncoder(w).Encode(map[string]interface{}{
+                "error": "endpoint only accepts either 'vendor' or 'buyer'",
+            })
+            return
+        }
 
         var errCode string
         b, err := ioutil.ReadAll(r.Body)
@@ -61,7 +75,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
             log.Debugf("failed to read body: %v", err)
         }
 
-        _ = json.Unmarshal(b, &rat)
+        _ = json.Unmarshal(b, &contract)
 
         if err != nil {
             log.Debugf("failed to marshal json: %v\n%v", err, string(b))
@@ -70,7 +84,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
             err := skademlia.Broadcast(sat.Node, satellite.Packet{
                 PacketType: satellite.PType_Broadcast,
                 Namespace:  "new_rating",
-                Payload:    rat,
+                Payload:    rating,
             })
             if err != nil {
                 log.Debugf("failed to broadcast: %v", err)

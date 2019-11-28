@@ -129,23 +129,6 @@ type VendorID struct {
 	BitcoinSig string  `json:"bitcoinSig"`
 }
 
-type Pubkeys struct {
-	Identity string `json:"identity"`
-	Bitcoin  string `json:"bitcoin"`
-}
-
-type Location struct {
-	AddressOne string `json:"addressOne"`
-	AddressTwo string `json:"addressTwo"`
-	City       string `json:"city"`
-	Country    string `json:"country"`
-	Latitude   string `json:"latitude"`
-	Longitude  string `json:"longitude"`
-	PlusCode   string `json:"plusCode"`
-	State      string `json:"state"`
-	ZipCode    string `json:"zipCode"`
-}
-
 type AdvancedSearchQuery struct {
 	Query      string        `json:"query"`
 	Filters    []string      `json:"filters"`
