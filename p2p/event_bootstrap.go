@@ -9,8 +9,8 @@ import (
     "github.com/nokusukun/particles/satellite"
 )
 
-func makeId(source, dest, nextSeq string) []byte {
-    return []byte(fmt.Sprint(source, nextSeq, dest))
+func makeId(source, dest string) []byte {
+    return []byte(fmt.Sprint(source, dest))
 }
 
 func bootstrapEvents(sat *satellite.Satellite, db *bolt.DB) {
@@ -36,12 +36,7 @@ func bootstrapEvents(sat *satellite.Satellite, db *bolt.DB) {
                 return err
             }
 
-            id, err := b.NextSequence()
-            if err != nil {
-                return err
-            }
-
-            return b.Put(makeId(rating.Source, rating.Destination, string(id)), bRat)
+            return b.Put(makeId(rating.Source, rating.Destination), bRat)
         })
 
         if err != nil {

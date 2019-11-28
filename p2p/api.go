@@ -56,12 +56,22 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         contract := new(models.Contract)
         publishType := mux.Vars(r)["type"]
 
-        var rating *Rating
+        var err error
+        b, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            log.Debugf("failed to read body: %v", err)
+            _ = json.NewEncoder(w).Encode(map[string]interface{}{
+                "error": err,
+            })
+            return
+        }
+        _ = json.Unmarshal(b, &contract)
 
+        var rating *Rating
         if publishType == "vendor" {
-            rating = VendorRatingFromContract(contract)
+            rating, err = VendorRatingFromContract(contract)
         } else if publishType == "buyer" {
-            rating = BuyerRatingFromContract(contract)
+            rating, err = BuyerRatingFromContract(contract)
         } else {
             _ = json.NewEncoder(w).Encode(map[string]interface{}{
                 "error": "endpoint only accepts either 'vendor' or 'buyer'",
@@ -69,29 +79,24 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
             return
         }
 
-        var errCode string
-        b, err := ioutil.ReadAll(r.Body)
         if err != nil {
-            log.Debugf("failed to read body: %v", err)
-        }
-
-        _ = json.Unmarshal(b, &contract)
-
-        if err != nil {
-            log.Debugf("failed to marshal json: %v\n%v", err, string(b))
-            errCode = fmt.Sprintf("failed to marshal json: %v", err)
-        } else {
-            err := skademlia.Broadcast(sat.Node, satellite.Packet{
-                PacketType: satellite.PType_Broadcast,
-                Namespace:  "new_rating",
-                Payload:    rating,
+            _ = json.NewEncoder(w).Encode(map[string]interface{}{
+                "error": fmt.Sprint(err),
             })
-            if err != nil {
-                log.Debugf("failed to broadcast: %v", err)
-                errCode = fmt.Sprintf("failed to broadcast: %v", err)
-            }
+            return
         }
 
+        var errCode string
+        errs := skademlia.Broadcast(sat.Node, satellite.Packet{
+            PacketType: satellite.PType_Broadcast,
+            Namespace:  "new_rating",
+            Payload:    rating,
+        })
+
+        if errs != nil {
+            log.Debugf("failed to broadcast: %v", err)
+            errCode = fmt.Sprintf("failed to broadcast: %v", err)
+        }
         _ = json.NewEncoder(w).Encode(map[string]interface{}{
             "error": errCode,
         })

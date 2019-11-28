@@ -19,8 +19,18 @@ type RatingRequest struct {
     Identity string `json:"ident"`
 }
 
-func VendorRatingFromContract(contract *models.Contract) (rating *Rating) {
+func VendorRatingFromContract(contract *models.Contract) (rating *Rating, err error) {
     rating = new(Rating)
+
+    if len(contract.Contract.VendorOrderFulfillment) == 0 {
+        err = fmt.Errorf("no vendorOrderFulfillment")
+        return
+    }
+
+    if len(contract.Contract.VendorListings) == 0 {
+        err = fmt.Errorf("no vendor listings")
+        return
+    }
 
     slug := contract.Contract.VendorOrderFulfillment[0].Slug
     vendorID := contract.Contract.VendorListings[0].VendorID.PeerID
@@ -37,9 +47,18 @@ func VendorRatingFromContract(contract *models.Contract) (rating *Rating) {
     return
 }
 
-func BuyerRatingFromContract(contract *models.Contract) (rating *Rating) {
+func BuyerRatingFromContract(contract *models.Contract) (rating *Rating, err error) {
     rating = new(Rating)
 
+    if len(contract.Contract.VendorOrderFulfillment) == 0 {
+        err = fmt.Errorf("no vendorOrderFulfillment")
+        return
+    }
+
+    if len(contract.Contract.VendorListings) == 0 {
+        err = fmt.Errorf("no vendor listings")
+        return
+    }
     vendorID := contract.Contract.VendorListings[0].VendorID.PeerID
 
     rating.Destination = contract.Contract.BuyerOrder.BuyerID.PeerID
