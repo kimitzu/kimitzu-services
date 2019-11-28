@@ -54,7 +54,10 @@ func bootstrapEvents(sat *satellite.Satellite, db *bolt.DB) {
 
         // Standard database stuff
         err := db.View(func(tx *bolt.Tx) error {
-            b := tx.Bucket([]byte("ratings"))
+            b, err := tx.CreateBucketIfNotExists([]byte("ratings"))
+            if err != nil {
+                return err
+            }
             cur := b.Cursor()
 
             r := []byte(req.Identity)

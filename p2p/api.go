@@ -52,6 +52,10 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
         _ = json.NewEncoder(w).Encode(ids)
     }).Methods("GET")
 
+    router.HandleFunc("/p2p/ratings/publish/{type}", func(writer http.ResponseWriter, request *http.Request) {
+        return
+    }).Methods("OPTIONS")
+
     router.HandleFunc("/p2p/ratings/publish/{type}", func(w http.ResponseWriter, r *http.Request) {
         contract := new(models.Contract)
         publishType := mux.Vars(r)["type"]
