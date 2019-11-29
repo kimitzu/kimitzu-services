@@ -19,7 +19,7 @@ import (
 var log = roggy.Printer("p2p")
 var Sat *satellite.Satellite
 
-func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, manager *RatingManager, killsig chan int) {
+func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, ratingManager *RatingManager, killsig chan int) {
 
     //todo: move most of this in the services main function
     log.Info("Starting Particle Daemon")
