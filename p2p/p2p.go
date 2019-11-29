@@ -7,7 +7,6 @@ import (
     "io/ioutil"
     "os"
 
-    "github.com/boltdb/bolt"
     "github.com/nokusukun/particles/config"
     "github.com/nokusukun/particles/keys"
     "github.com/nokusukun/particles/roggy"
@@ -20,7 +19,7 @@ import (
 var log = roggy.Printer("p2p")
 var Sat *satellite.Satellite
 
-func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, killsig chan int) {
+func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, manager *RatingManager, killsig chan int) {
 
     //todo: move most of this in the services main function
     log.Info("Starting Particle Daemon")
@@ -32,14 +31,6 @@ func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, killsig chan int) {
         log.Error("No database path provided --dbpath")
         roggy.Wait()
         os.Exit(1)
-    }
-
-    // database initialization
-    db, err := bolt.Open(cdae.DatabasePath, os.ModePerm, nil)
-    if err != nil {
-        log.Error("Opening database failed")
-        roggy.Wait()
-        panic(err)
     }
 
     // satellite bootstrapping
@@ -60,7 +51,8 @@ func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, killsig chan int) {
         skademlia.WaitUntilAuthenticated(peer)
         log.Infof("Bootstrapped to: %v", satellite.GetPeerID(peer))
     }
-    bootstrapEvents(Sat, db)
+
+    bootstrapEvents(Sat, ratingManager)
 
     // API
     //if cdae.ApiListen != "" {
@@ -72,7 +64,7 @@ func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, killsig chan int) {
     //}
 
     defer func() {
-        err := db.Close()
+        err := ratingManager.Close()
         if err != nil {
             log.Error("failed to close database", err)
         }

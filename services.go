@@ -78,15 +78,23 @@ func main() {
 	store := servicestore.InitializeManagedStorage(confDaemon.DataPath)
 	p2pKillSig := make(chan int, 1)
 
+	// database initialization
+	ratingManager, err := p2p.InitializeRatingManager(confDaemon.DatabasePath)
+	if err != nil {
+		log.Error("Opening database failed")
+		roggy.Wait()
+		panic(err)
+	}
+
 	// test(&srvLog, log, store)
 	apiRouter := mux.NewRouter()
 
 	time.Sleep(time.Second * 10)
-	go p2p.Bootstrap(&confDaemon, &confSat, p2pKillSig)
+	go p2p.Bootstrap(&confDaemon, &confSat, ratingManager, p2pKillSig)
 	go voyager.RunVoyagerService(log.Sub("voyager"), store)
 	location.RunLocationService(log.Sub("location"))
 
-	p2p.AttachAPI(p2p.Sat, apiRouter)
+	p2p.AttachAPI(p2p.Sat, apiRouter, ratingManager)
 	api.AttachStore(store)
 	api.AttachAPI(log.Sub("api"), apiRouter)
 

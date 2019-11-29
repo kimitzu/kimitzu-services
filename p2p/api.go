@@ -40,7 +40,7 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) bool {
 	return false
 }
 
-func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
+func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingManager) *mux.Router {
 	// router := mux.NewRouter()
 
 	router.HandleFunc("/debug/pprof/", pprof.Index)
@@ -114,6 +114,9 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router) *mux.Router {
 			log.Debugf("failed to broadcast: %v", err)
 			errCode = fmt.Sprintf("failed to broadcast: %v", err)
 		}
+
+        manager.InsertRating(rating)
+
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": errCode,
 		})

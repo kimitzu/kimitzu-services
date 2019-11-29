@@ -9,11 +9,7 @@ import (
 	"github.com/nokusukun/particles/satellite"
 )
 
-func makeId(source, dest string) []byte {
-	return []byte(fmt.Sprint(source, dest))
-}
-
-func bootstrapEvents(sat *satellite.Satellite, db *bolt.DB) {
+func bootstrapEvents(sat *satellite.Satellite, manager *RatingManager) {
 	log := log.Sub("events")
 
 	sat.Event(satellite.PType_Message, "hello", func(i *satellite.Inbound) {
@@ -25,19 +21,7 @@ func bootstrapEvents(sat *satellite.Satellite, db *bolt.DB) {
 		rating := i.As(&Rating{}).(*Rating)
 		log.Debug("received broadcast:", rating)
 		log.Debug("i.payload:", i.Payload)
-		err := db.Update(func(tx *bolt.Tx) error {
-			b, err := tx.CreateBucketIfNotExists([]byte("ratings"))
-			if err != nil {
-				return err
-			}
-
-			bRat, err := json.Marshal(rating)
-			if err != nil {
-				return err
-			}
-
-			return b.Put(makeId(rating.Source, rating.Destination), bRat)
-		})
+		err := manager.InsertRating(rating)
 
 		if err != nil {
 			log.Error("failed to ingest", err)
@@ -53,12 +37,8 @@ func bootstrapEvents(sat *satellite.Satellite, db *bolt.DB) {
 		defer i.EndReply()
 
 		// Standard database stuff
-		err := db.View(func(tx *bolt.Tx) error {
+		err := manager.db.View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte("ratings"))
-			// if err != nil {
-			// 	fmt.Println(err, "ONE")
-			// 	return err
-			// }
 			cur := b.Cursor()
 
 			fmt.Println(cur, "TWO")

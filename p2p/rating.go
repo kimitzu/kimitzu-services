@@ -2,6 +2,9 @@ package p2p
 
 import (
     "fmt"
+    "os"
+
+    "github.com/boltdb/bolt"
 
     "github.com/djali-foundation/djali-services/models"
 )
@@ -18,6 +21,83 @@ type Rating struct {
 type RatingRequest struct {
     Identity string `json:"ident"`
 }
+
+func InitializeRatingManager(path string) (man *RatingManager, err error) {
+    man = new(RatingManager)
+    db, err := bolt.Open(path, os.ModePerm, nil)
+    if err != nil {
+        return
+    }
+
+    // Initialize bucket for ratings
+    err = db.Update(func(tx *bolt.Tx) (err error) {
+        _, err = tx.CreateBucketIfNotExists([]byte("ratings"))
+        return
+    })
+    if err != nil {
+        return
+    }
+
+    man.db = db
+    return
+}
+
+type RatingManager struct {
+    db *bolt.DB
+}
+
+func makeId(source, dest string) []byte {
+    return []byte(fmt.Sprint(source, dest))
+}
+
+func (rm *RatingManager) InsertRating(rating *Rating) (err error) {
+    return rm.db.Update(func(tx *bolt.Tx) error {
+        b, err := tx.CreateBucketIfNotExists([]byte("ratings"))
+        if err != nil {
+            return err
+        }
+
+        bRat, err := json.Marshal(rating)
+        if err != nil {
+            return err
+        }
+
+        return b.Put(makeId(rating.Source, rating.Destination), bRat)
+    })
+}
+
+func (rm *RatingManager) Close() error {
+    return rm.db.Close()
+}
+
+func (rm *RatingManager) IngestCompletionRating(contract *models.Contract) (err error) {
+    rating, err := VendorRatingFromContract(contract)
+    if err != nil {
+        return
+    }
+
+    err = rm.InsertRating(rating)
+    if err != nil {
+        return
+    }
+
+    return
+}
+
+func (rm *RatingManager) IngestFulfillmentRating(contract *models.Contract) (err error) {
+    rating, err := BuyerRatingFromContract(contract)
+    if err != nil {
+        return
+    }
+
+    err = rm.InsertRating(rating)
+    if err != nil {
+        return
+    }
+
+    return
+}
+
 
 func VendorRatingFromContract(contract *models.Contract) (rating *Rating, err error) {
     rating = new(Rating)
