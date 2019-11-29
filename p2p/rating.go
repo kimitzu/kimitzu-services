@@ -123,7 +123,7 @@ func VendorRatingFromContract(contract *models.Contract) (rating *Rating, err er
 
 	rating.Content = contract.Contract.BuyerOrderCompletion
 	rating.Signatures = contract.Contract.Signatures
-	rating.Type = "fulfill"
+	rating.Type = "complete"
 
 	return
 }
@@ -150,7 +150,7 @@ func BuyerRatingFromContract(contract *models.Contract) (rating *Rating, err err
 
 	rating.Content = contract.Contract.VendorOrderFulfillment[0]
 	rating.Signatures = contract.Contract.Signatures
-	rating.Type = "complete"
+	rating.Type = "fulfill"
 
 	return
 }
