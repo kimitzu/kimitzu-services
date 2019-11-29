@@ -70,8 +70,8 @@ func (rm *RatingManager) Close() error {
     return rm.db.Close()
 }
 
-func (rm *RatingManager) IngestCompletionRating(contract *models.Contract) (err error) {
-    rating, err := VendorRatingFromContract(contract)
+func (rm *RatingManager) IngestCompletionRating(contract *models.Contract) (rating *Rating, err error) {
+    rating, err = VendorRatingFromContract(contract)
     if err != nil {
         return
     }
@@ -84,8 +84,8 @@ func (rm *RatingManager) IngestCompletionRating(contract *models.Contract) (err 
     return
 }
 
-func (rm *RatingManager) IngestFulfillmentRating(contract *models.Contract) (err error) {
-    rating, err := BuyerRatingFromContract(contract)
+func (rm *RatingManager) IngestFulfillmentRating(contract *models.Contract) (rating *Rating, err error) {
+    rating, err = BuyerRatingFromContract(contract)
     if err != nil {
         return
     }

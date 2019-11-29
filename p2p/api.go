@@ -84,11 +84,12 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 		}
 		_ = json.Unmarshal(b, &contract)
 
+        // Ingest Rating to internal database
 		var rating *Rating
-		if publishType == "vendor" {
-			rating, err = VendorRatingFromContract(contract)
-		} else if publishType == "buyer" {
-			rating, err = BuyerRatingFromContract(contract)
+        if publishType == "fulfill" {
+            rating, err = manager.IngestFulfillmentRating(contract)
+        } else if publishType == "complete" {
+            rating, err = manager.IngestCompletionRating(contract)
 		} else {
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": "endpoint only accepts either 'vendor' or 'buyer'",
@@ -103,6 +104,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 			return
 		}
 
+        // Broadcast to the network
 		var errCode string
 		errs := skademlia.Broadcast(sat.Node, satellite.Packet{
 			PacketType: satellite.PType_Broadcast,
@@ -114,8 +116,6 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 			log.Debugf("failed to broadcast: %v", err)
 			errCode = fmt.Sprintf("failed to broadcast: %v", err)
 		}
-
-        manager.InsertRating(rating)
 
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": errCode,
