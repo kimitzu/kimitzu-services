@@ -46,7 +46,7 @@ func bootstrapEvents(sat *satellite.Satellite, manager *RatingManager) {
 			r := []byte(req.Identity)
 
 			for k, v := cur.First(); k != nil; k, v = cur.Next() {
-				if bytes.HasPrefix(k, r) || bytes.HasSuffix(k, r) {
+				if bytes.HasPrefix(k, r) {
 					// Unmarshal the data into a Rating struct
 					rat := Rating{}
 					err := json.Unmarshal(v, &rat)

@@ -65,7 +65,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 		_ = json.NewEncoder(w).Encode(ids)
 	}).Methods("GET")
 
-	router.HandleFunc("/p2p/ratings/publish/{type}", func(w http.ResponseWriter, r *http.Request) {
+    router.HandleFunc("/p2p/ratings/publish/{type}", func(w http.ResponseWriter, r *http.Request) {
 		if retOK := setupResponse(&w, r); retOK {
 			return
 		}
