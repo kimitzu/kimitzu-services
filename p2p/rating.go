@@ -62,7 +62,7 @@ func (rm *RatingManager) InsertRating(rating *Rating) (err error) {
             return err
         }
 
-        return b.Put(makeId(rating.Source, rating.Destination), bRat)
+        return b.Put(makeId(rating.Destination, rating.Source), bRat)
     })
 }
 
