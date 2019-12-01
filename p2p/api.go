@@ -65,7 +65,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 		_ = json.NewEncoder(w).Encode(ids)
 	}).Methods("GET")
 
-    router.HandleFunc("/p2p/ratings/publish/{type}", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/p2p/ratings/publish/{type}", func(w http.ResponseWriter, r *http.Request) {
 		if retOK := setupResponse(&w, r); retOK {
 			return
 		}
@@ -84,12 +84,12 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 		}
 		_ = json.Unmarshal(b, &contract)
 
-        // Ingest Rating to internal database
+		// Ingest Rating to internal database
 		var rating *Rating
-        if publishType == "fulfill" {
-            rating, err = manager.IngestFulfillmentRating(contract)
-        } else if publishType == "complete" {
-            rating, err = manager.IngestCompletionRating(contract)
+		if publishType == "fulfill" {
+			rating, err = manager.IngestFulfillmentRating(contract)
+		} else if publishType == "complete" {
+			rating, err = manager.IngestCompletionRating(contract)
 		} else {
 			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"error": "endpoint only accepts either 'vendor' or 'buyer'",
@@ -104,7 +104,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 			return
 		}
 
-        // Broadcast to the network
+		// Broadcast to the network
 		var errCode string
 		errs := skademlia.Broadcast(sat.Node, satellite.Packet{
 			PacketType: satellite.PType_Broadcast,
@@ -152,6 +152,10 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 	})
 
 	router.HandleFunc("/p2p/ratings/seek-sync/{ids}", func(w http.ResponseWriter, r *http.Request) {
+		if retOK := setupResponse(&w, r); retOK {
+			return
+		}
+
 		vars := mux.Vars(r)
 		var errCode string
 		var ratings []interface{}

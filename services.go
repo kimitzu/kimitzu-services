@@ -37,6 +37,7 @@ func init() {
 	flag.StringVar(&confDaemon.DataPath, "data", "&home", "Folder to store location data")
 
 	flag.StringVar(&confDaemon.DialTo, "dial", "", "Bootstrap s/kad from this peer")
+	flag.StringVar(&confDaemon.BootstrapNodeIdentity, "bootstrapNodeIdentity", "", "The identity (host:port) of this bootstrap node")
 	flag.StringVar(&confDaemon.ApiListen, "api", "0.0.0.0:8109", "Enable the api and serve to this address")
 	flag.StringVar(&confDaemon.DatabasePath, "dbpath", "&home", "Database Path")
 	flag.StringVar(&confDaemon.KeyPath, "key", "&home", "Read/write key from/to path")
