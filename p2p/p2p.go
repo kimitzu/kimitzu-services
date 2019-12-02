@@ -13,7 +13,7 @@ import (
 	"github.com/nokusukun/particles/satellite"
 	"github.com/perlin-network/noise/skademlia"
 
-	"github.com/djali-foundation/djali-services/configs"
+	"github.com/kimitzu/kimitzu-services/configs"
 )
 
 var log = roggy.Printer("p2p")

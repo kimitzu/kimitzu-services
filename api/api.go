@@ -16,12 +16,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/nokusukun/particles/roggy"
 
-	"github.com/djali-foundation/djali-services/location"
+	"github.com/kimitzu/kimitzu-services/location"
 
-	"github.com/djali-foundation/djali-services/servicestore"
-	"github.com/djali-foundation/djali-services/voyager"
+	"github.com/kimitzu/kimitzu-services/servicestore"
+	"github.com/kimitzu/kimitzu-services/voyager"
 
-	"github.com/djali-foundation/djali-services/models"
+	"github.com/kimitzu/kimitzu-services/models"
 )
 
 var (

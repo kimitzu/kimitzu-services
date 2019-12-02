@@ -15,7 +15,7 @@ import (
 
 	"github.com/nokusukun/particles/satellite"
 
-	"github.com/djali-foundation/djali-services/models"
+	"github.com/kimitzu/kimitzu-services/models"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary

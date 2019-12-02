@@ -1,4 +1,4 @@
-# Djali Services
+# Kimitzu Services
 * Location Service
   * Distance within radius of (lat, lng)
 * Voyager Crawler Service

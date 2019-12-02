@@ -6,7 +6,7 @@ import (
 
 	"github.com/PaesslerAG/gval"
 
-	"github.com/djali-foundation/djali-services/location"
+	"github.com/kimitzu/kimitzu-services/location"
 )
 
 func any(arr []bool) bool {

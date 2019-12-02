@@ -13,8 +13,8 @@ import (
 	"github.com/levigross/grequests"
     "github.com/nokusukun/particles/roggy"
 
-	"github.com/djali-foundation/djali-services/models"
-	"github.com/djali-foundation/djali-services/servicestore"
+	"github.com/kimitzu/kimitzu-services/models"
+	"github.com/kimitzu/kimitzu-services/servicestore"
 )
 
 const (

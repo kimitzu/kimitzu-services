@@ -6,7 +6,7 @@ import (
 
 	"github.com/boltdb/bolt"
 
-	"github.com/djali-foundation/djali-services/models"
+	"github.com/kimitzu/kimitzu-services/models"
 )
 
 type Rating struct {

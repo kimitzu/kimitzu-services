@@ -13,13 +13,13 @@ import (
 	"github.com/nokusukun/particles/config"
 	"github.com/nokusukun/particles/roggy"
 
-	"github.com/djali-foundation/djali-services/api"
-	"github.com/djali-foundation/djali-services/configs"
-	"github.com/djali-foundation/djali-services/p2p"
+	"github.com/kimitzu/kimitzu-services/api"
+	"github.com/kimitzu/kimitzu-services/configs"
+	"github.com/kimitzu/kimitzu-services/p2p"
 
-	"github.com/djali-foundation/djali-services/location"
-	"github.com/djali-foundation/djali-services/servicestore"
-	"github.com/djali-foundation/djali-services/voyager"
+	"github.com/kimitzu/kimitzu-services/location"
+	"github.com/kimitzu/kimitzu-services/servicestore"
+	"github.com/kimitzu/kimitzu-services/voyager"
 )
 
 var (

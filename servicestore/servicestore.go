@@ -7,7 +7,7 @@ import (
 
 	gomenasai "github.com/nokusukun/go-menasai/manager"
 
-	"github.com/djali-foundation/djali-services/models"
+	"github.com/kimitzu/kimitzu-services/models"
 )
 
 // MainStorage is defunct, user MainManagedStorage
