@@ -13,7 +13,7 @@ API documentation can be found in [Postman API Docs](https://documenter.getpostm
 
 # Installation
 ```bash
-go get github.com/djali-foundation/djali-services
+go get github.com/kimitzu-foundation/kimitzu-services
 ```
 
 # Run

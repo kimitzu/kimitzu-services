@@ -415,19 +415,19 @@ func HTTPMedia(w http.ResponseWriter, r *http.Request) {
 }
 
 func AppendAPIService(mux *http.ServeMux) {
-	mux.HandleFunc("/djali/location/query", location.HTTPLocationQueryHandler)
-	mux.HandleFunc("/djali/location/codesfrom", location.HTTPLocationCodesfromHandler)
+    mux.HandleFunc("/kimitzu/location/query", location.HTTPLocationQueryHandler)
+    mux.HandleFunc("/kimitzu/location/codesfrom", location.HTTPLocationCodesfromHandler)
 
-	mux.HandleFunc("/djali/peers/listings", HTTPPeerGetListings)
-	mux.HandleFunc("/djali/peer/get", HTTPPeerGet)
-	mux.HandleFunc("/djali/peers", HTTPPeers)
-	mux.HandleFunc("/djali/peer/add", HTTPPeerAdd)
-	mux.HandleFunc("/djali/peer/search", HTTPPeerSearch)
+    mux.HandleFunc("/kimitzu/peers/listings", HTTPPeerGetListings)
+    mux.HandleFunc("/kimitzu/peer/get", HTTPPeerGet)
+    mux.HandleFunc("/kimitzu/peers", HTTPPeers)
+    mux.HandleFunc("/kimitzu/peer/add", HTTPPeerAdd)
+    mux.HandleFunc("/kimitzu/peer/search", HTTPPeerSearch)
 
-	mux.HandleFunc("/djali/listing", HTTPListing)
-	mux.HandleFunc("/djali/search", HTTPListingSearch)
+    mux.HandleFunc("/kimitzu/listing", HTTPListing)
+    mux.HandleFunc("/kimitzu/search", HTTPListingSearch)
 
-	mux.HandleFunc("/djali/media", HTTPMedia)
+    mux.HandleFunc("/kimitzu/media", HTTPMedia)
 }
 
 func AttachStore(store_ *servicestore.MainManagedStorage) {
@@ -437,19 +437,19 @@ func AttachStore(store_ *servicestore.MainManagedStorage) {
 func AttachAPI(log *roggy.LogPrinter, router *mux.Router) {
 	log.Info("Starting HTTP Service")
 
-	router.HandleFunc("/djali/location/query", location.HTTPLocationQueryHandler)
-	router.HandleFunc("/djali/location/codesfrom", location.HTTPLocationCodesfromHandler)
+    router.HandleFunc("/kimitzu/location/query", location.HTTPLocationQueryHandler)
+    router.HandleFunc("/kimitzu/location/codesfrom", location.HTTPLocationCodesfromHandler)
 
-	router.HandleFunc("/djali/peers/listings", HTTPPeerGetListings)
-	router.HandleFunc("/djali/peer/get", HTTPPeerGet)
-	router.HandleFunc("/djali/peers", HTTPPeers)
-	router.HandleFunc("/djali/peer/add", HTTPPeerAdd)
-	router.HandleFunc("/djali/peer/search", HTTPPeerSearch)
+    router.HandleFunc("/kimitzu/peers/listings", HTTPPeerGetListings)
+    router.HandleFunc("/kimitzu/peer/get", HTTPPeerGet)
+    router.HandleFunc("/kimitzu/peers", HTTPPeers)
+    router.HandleFunc("/kimitzu/peer/add", HTTPPeerAdd)
+    router.HandleFunc("/kimitzu/peer/search", HTTPPeerSearch)
 
-	router.HandleFunc("/djali/listing", HTTPListing)
-	router.HandleFunc("/djali/search", HTTPListingSearch)
+    router.HandleFunc("/kimitzu/listing", HTTPListing)
+    router.HandleFunc("/kimitzu/search", HTTPListingSearch)
 
-	router.HandleFunc("/djali/media", HTTPMedia)
+    router.HandleFunc("/kimitzu/media", HTTPMedia)
 
 	router.HandleFunc("/authenticate", Authenticate)
 

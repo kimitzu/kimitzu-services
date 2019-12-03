@@ -49,7 +49,7 @@ func init() {
 
 	if confDaemon.DataPath == "&home" {
 		home, _ := homedir.Dir()
-		confDaemon.DataPath = path.Join(home, "djali")
+		confDaemon.DataPath = path.Join(home, "kimitzu")
 	}
 
 	if confDaemon.DatabasePath == "&home" {
@@ -71,7 +71,7 @@ func main() {
 	// Deadlock prevention
 	time.Sleep(time.Second * 1)
 
-	log.Info(fmt.Sprintf("Djali Services Daemon (%v)", confDaemon.Version))
+	log.Info(fmt.Sprintf("Kimitzu Services Daemon (%v)", confDaemon.Version))
 	log.Info(" --- --- --- --- --- ")
 	log.Infof("Log Level: %v", roggy.LogLevel)
 	log.Info("Starting Services")
