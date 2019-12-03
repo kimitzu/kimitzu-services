@@ -19,7 +19,7 @@ type AuthPayload struct {
 	NewPassword string `json:"newPassword"`
 }
 
-type DjaliInfoP struct {
+type KimitzuInfoP struct {
 	Repo          string `json:"repoPath"`
 	Cookie        string `json:"cookie"`
 	Username      string `json:"username"`
@@ -27,20 +27,20 @@ type DjaliInfoP struct {
 	Authenticated bool   `json:"authenticated"`
 }
 
-func getInfo() (DjaliInfoP, error) {
-	res, err := grequests.Get("http://127.0.0.1:4002/djali/info", &grequests.RequestOptions{RequestTimeout: time.Second * 10})
+func getInfo() (KimitzuInfoP, error) {
+    res, err := grequests.Get("http://127.0.0.1:4002/kimitzu/info", &grequests.RequestOptions{RequestTimeout: time.Second * 10})
 	if err != nil {
 		fmt.Println("Error", err)
-		return DjaliInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
-	}
+        return KimitzuInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
+    }
 
-	info := DjaliInfoP{}
+    info := KimitzuInfoP{}
 	json.Unmarshal(res.Bytes(), &info)
 	return info, nil
 }
 
-func patchConfig(username, password string, authenticate bool) (DjaliInfoP, error) {
-	res, err := grequests.Post("http://127.0.0.1:4002/djali/config", &grequests.RequestOptions{
+func patchConfig(username, password string, authenticate bool) (KimitzuInfoP, error) {
+    res, err := grequests.Post("http://127.0.0.1:4002/kimitzu/config", &grequests.RequestOptions{
 		RequestTimeout: time.Second * 10,
 		JSON: map[string]interface{}{
 			"username":      username,
@@ -51,10 +51,10 @@ func patchConfig(username, password string, authenticate bool) (DjaliInfoP, erro
 
 	if err != nil {
 		fmt.Println("Error", err)
-		return DjaliInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
-	}
+        return KimitzuInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
+    }
 
-	info := DjaliInfoP{}
+    info := KimitzuInfoP{}
 	json.Unmarshal(res.Bytes(), &info)
 	return info, nil
 }
