@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"bytes"
-	"fmt"
 
 	"github.com/boltdb/bolt"
 
@@ -41,7 +40,7 @@ func bootstrapEvents(sat *satellite.Satellite, manager *RatingManager) {
 			b := tx.Bucket([]byte("ratings"))
 			cur := b.Cursor()
 
-			fmt.Println(cur, "TWO")
+            //fmt.Println(cur, "TWO")
 
 			r := []byte(req.Identity)
 

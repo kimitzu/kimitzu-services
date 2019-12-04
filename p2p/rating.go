@@ -47,8 +47,8 @@ type RatingManager struct {
 	db *bolt.DB
 }
 
-func makeId(source, dest string) []byte {
-	return []byte(fmt.Sprint(source, dest))
+func makeId(a, b string) []byte {
+    return []byte(fmt.Sprint(a, b))
 }
 
 func (rm *RatingManager) InsertRating(rating *Rating) (err error) {

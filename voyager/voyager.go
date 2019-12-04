@@ -1,3 +1,7 @@
+/*
+	This package is pending rewrite.
+*/
+
 package voyager
 
 import (
@@ -208,7 +212,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		if existing.Count == 1 {
 			store.Listings.Update(existing.Documents[0].ID, classListing)
 		} else {
-			store.Listings.Insert(classListing)
+            store.Listings.Insert(classListing.Hash, classListing)
 		}
 
 		go downloadFile(listing.Thumbnail.Medium)
@@ -256,7 +260,7 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
                 store.PMapSet(peer, "")
 				continue
 			}
-			peerObjID, err := store.PeerData.Insert(peerObj)
+            peerObjID, err := store.PeerData.Insert(peerObj.ID, peerObj)
 			if err != nil {
 				panic(err)
 			}

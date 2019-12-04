@@ -37,8 +37,9 @@ func Bootstrap(cdae *configs.Daemon, csat *config.Satellite, ratingManager *Rati
 	// satellite bootstrapping
 	keyPair, err := getKeys(cdae.KeyPath, cdae.GenerateNewKeys)
 	if err != nil {
-		log.Error("Failed to get keyPair:", err)
+		log.Error("Failed to get keypair:", err)
 		log.Error("Your key might not exist, try with the -generate flag")
+		os.Exit(1)
 	}
 	Sat = satellite.BuildNetwork(csat, keyPair)
 

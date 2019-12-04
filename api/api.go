@@ -106,19 +106,19 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
                 toReturn = string(doc.Content)
             }
         } else {
+            var peerObjID string
             peerObj, err := voyager.DigestPeer(qpeerid, store)
             if err != nil {
                 store.SafePMapModify(func() {
                     store.PMap[qpeerid] = ""
                 })
                 message = "failed"
-            }
-
-            peerObjID, err := store.PeerData.Insert(peerObj)
-
-			if err != nil {
-                message = "failed"
-                toReturn = `{"error": "` + message + `"}`
+            } else {
+                peerObjID, err = store.PeerData.Insert(peerObj.ID, peerObj)
+                if err != nil {
+                    message = "failed"
+                    toReturn = `{"error": "` + message + `"}`
+                }
             }
 
 			// If nothing fails
@@ -182,7 +182,7 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
             message = "failed"
             cancel()
         }
-        peerObjID, err := store.PeerData.Insert(peerObj)
+        peerObjID, err := store.PeerData.Insert(peerObj.ID, peerObj)
         if err != nil {
             // panic(err)
             message = "failed"
