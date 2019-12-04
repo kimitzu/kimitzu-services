@@ -7,6 +7,7 @@ import (
 	"github.com/PaesslerAG/gval"
 
 	"github.com/kimitzu/kimitzu-services/location"
+    "github.com/kimitzu/kimitzu-services/models"
 )
 
 func any(arr []bool) bool {
@@ -54,6 +55,28 @@ func like(a, b string) bool {
 
 // LoadCustomEngine loads a custom gval.Language to extend the capabilities of the Filters.
 func LoadCustomEngine(store *MainManagedStorage) gval.Language {
+
+    getProps := func(profileId string) []map[string]string {
+        result := store.PeerData.Search(profileId)
+        if result.Count == 0 {
+            return nil
+        }
+
+        peer := &models.Peer{}
+        _ = result.Documents[0].Export(peer)
+        rawMap, ok := peer.RawMap["profile"].(map[string]interface{})
+        if !ok {
+            return []map[string]string{}
+        }
+
+        fields, ok := rawMap["customFields"].([]map[string]string)
+        if !ok {
+            return []map[string]string{}
+        }
+
+        return fields
+    }
+
 	locMap := LoadLocationMap()
 	language := gval.Full(
 		gval.Function("contains", func(fullstr string, substr string) bool {
@@ -123,7 +146,8 @@ func LoadCustomEngine(store *MainManagedStorage) gval.Language {
             return false
         }),
 
-        gval.Function("getPropAsString", func(fields []map[string]string, target string) string {
+        gval.Function("getPropAsString", func(profileId string, target string) string {
+            fields := getProps(profileId)
             for _, field := range fields {
                 if prop, ok := field["label"]; ok && prop == target {
                     return field["value"]
