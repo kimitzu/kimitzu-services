@@ -1,13 +1,15 @@
 package servicestore
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/PaesslerAG/gval"
 
 	"github.com/kimitzu/kimitzu-services/location"
-    "github.com/kimitzu/kimitzu-services/models"
+	"github.com/kimitzu/kimitzu-services/models"
 )
 
 func any(arr []bool) bool {
@@ -56,26 +58,22 @@ func like(a, b string) bool {
 // LoadCustomEngine loads a custom gval.Language to extend the capabilities of the Filters.
 func LoadCustomEngine(store *MainManagedStorage) gval.Language {
 
-    getProps := func(profileId string) []map[string]string {
-        result := store.PeerData.Search(profileId)
-        if result.Count == 0 {
-            return nil
-        }
+	getProps := func(profileId string) []map[string]string {
+		fmt.Println("getProps", profileId)
+		result, err := store.PeerData.Get(profileId)
 
-        peer := &models.Peer{}
-        _ = result.Documents[0].Export(peer)
-        rawMap, ok := peer.RawMap["profile"].(map[string]interface{})
-        if !ok {
-            return []map[string]string{}
-        }
+		if err != nil {
+			return nil
+		}
 
-        fields, ok := rawMap["customFields"].([]map[string]string)
-        if !ok {
-            return []map[string]string{}
-        }
+		peer := &models.Peer{}
+		_ = result.Export(peer)
+		jb, err := json.Marshal(peer.RawMap["customFields"])
+		fields := []map[string]string{}
+		json.Unmarshal(jb, &fields)
 
-        return fields
-    }
+		return fields
+	}
 
 	locMap := LoadLocationMap()
 	language := gval.Full(
@@ -125,47 +123,28 @@ func LoadCustomEngine(store *MainManagedStorage) gval.Language {
 				return false
 			}
 			return like(x, y)
-        }),
-
-        // `getProfile(doc.peerId)["age"]["min"] > 14`
-        gval.Function("getProfile", func(profileId string) map[string]interface{} {
-            profile := store.PeerData.Search(profileId)
-            if profile.Count == 0 {
-                return make(map[string]interface{})
-            }
-            return profile.Documents[0].ExportI()
 		}),
 
-        gval.Function("getPropAsBool", func(fields []map[string]string, target string) bool {
-            for _, field := range fields {
-                if prop, ok := field["label"]; ok && prop == target {
-                    val, _ := strconv.ParseBool(field["value"])
-                    return val
-                }
-            }
-            return false
-        }),
+		// `getProfile(doc.peerId)["age"]["min"] > 14`
+		gval.Function("getProfile", func(profileId string) map[string]interface{} {
+			profile := store.PeerData.Search(profileId)
+			if profile.Count == 0 {
+				return make(map[string]interface{})
+			}
+			return profile.Documents[0].ExportI()
+		}),
 
-        gval.Function("getPropAsString", func(profileId string, target string) string {
-            fields := getProps(profileId)
-            for _, field := range fields {
-                if prop, ok := field["label"]; ok && prop == target {
-                    return field["value"]
-                }
-            }
-            return ""
-        }),
-
-        gval.Function("getPropAsInt", func(fields []map[string]string, target string) int {
-            for _, field := range fields {
-                if prop, ok := field["label"]; ok && prop == target {
-                    val, _ := strconv.Atoi(field["value"])
-                    return val
-                }
-            }
-            return 0
-        }),
-
+		gval.Function("matchPropAsString", func(profileId string, target string, match string) bool {
+			fmt.Println(profileId)
+			fields := getProps(profileId)
+			fmt.Println(fields)
+			for _, field := range fields {
+				if prop, ok := field["label"]; ok && prop == target {
+					return field["value"] == match
+				}
+			}
+			return false
+		}),
 	)
 	return language
 }
