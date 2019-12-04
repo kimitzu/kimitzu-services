@@ -134,16 +134,14 @@ func LoadCustomEngine(store *MainManagedStorage) gval.Language {
 			return profile.Documents[0].ExportI()
 		}),
 
-		gval.Function("matchPropAsString", func(profileId string, target string, match string) bool {
-			fmt.Println(profileId)
+		gval.Function("matchPropAsString", func(profileId string, target string) string {
 			fields := getProps(profileId)
-			fmt.Println(fields)
 			for _, field := range fields {
 				if prop, ok := field["label"]; ok && prop == target {
-					return field["value"] == match
+					return field["value"]
 				}
 			}
-			return false
+			return ""
 		}),
 	)
 	return language
