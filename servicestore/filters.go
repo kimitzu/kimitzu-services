@@ -134,6 +134,16 @@ func LoadCustomEngine(store *MainManagedStorage) gval.Language {
 			return profile.Documents[0].ExportI()
 		}),
 
+        gval.Function("hasProp", func(profileId, target string) bool {
+            fields := getProps(profileId)
+            for _, field := range fields {
+                if prop, ok := field["label"]; ok && prop == target {
+                    return true
+                }
+            }
+            return false
+        }),
+
         gval.Function("getPropAsString", func(profileId string, target string) string {
 			fields := getProps(profileId)
 			for _, field := range fields {
