@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+    "github.com/gorilla/websocket"
 	"github.com/perlin-network/noise/skademlia"
 
 	jsoniter "github.com/json-iterator/go"
@@ -19,6 +20,11 @@ import (
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
+var upgrader = websocket.Upgrader{
+    CheckOrigin: func(r *http.Request) bool {
+        return true
+    },
+}
 
 type WriteRequest struct {
 	PacketType  string      `json:"type"`
@@ -64,6 +70,31 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
 
 		_ = json.NewEncoder(w).Encode(ids)
 	}).Methods("GET")
+
+    router.HandleFunc("/p2p/ratings/seek/{ids}", func(w http.ResponseWriter, r *http.Request) {
+        vars := mux.Vars(r)
+        ws, err := upgrader.Upgrade(w, r, nil)
+        if err != nil {
+            fmt.Println("Failed to upgrade to websocket connection:", r.RemoteAddr)
+            _ = json.NewEncoder(w).Encode(map[string]interface{}{
+                "error": err,
+            })
+            return
+        }
+
+        go func() {
+            rs, err := sat.Seek("get_rating", RatingRequest{vars["ids"]})
+            if err != nil {
+                log.Errorf("failed to broadcast: %v", err)
+            } else {
+                log.Debug("Waiting for streams")
+                for inbound := range rs.Stream {
+                    //ratings = append(ratings, inbound.Payload)
+                    _ = ws.WriteJSON(inbound.Payload)
+                }
+            }
+        }()
+    })
 
 	router.HandleFunc("/p2p/ratings/publish/{type}", func(w http.ResponseWriter, r *http.Request) {
 		if retOK := setupResponse(&w, r); retOK {
