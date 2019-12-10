@@ -92,6 +92,7 @@ func AttachAPI(sat *satellite.Satellite, router *mux.Router, manager *RatingMana
                     //ratings = append(ratings, inbound.Payload)
                     _ = ws.WriteJSON(inbound.Payload)
                 }
+                ws.Close()
             }
         }()
     })
