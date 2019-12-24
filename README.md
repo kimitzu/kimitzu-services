@@ -1,34 +1,61 @@
 # Kimitzu Services
-* Location Service
-  * Distance within radius of (lat, lng)
-* Voyager Crawler Service
-* Search Service
 
-## Documentation
+This repository contains the API layer used by the [Kimitzu Client](https://github.com/kimitzu/kimitzu-client).
+
+# Features
+
+* Voyager Crawler Service
+  * Indexing
+  * Caching
+* Search Service
+  * Keyword Search
+  * Advanced Filtering
+    * By Listing
+    * By Profile
+  * Location Service
+    * Distance within radius of (lat, lng)
+    * Zip Code
+* S/Kademlia P2P Service for Decentralized Ratings
+  * P2P rendezvous via S/Kademlia DHT network
+
+# Documentation
 API documentation can be found in [Postman API Docs](https://documenter.getpostman.com/view/7522385/SVtN5CZU?version=latest).
 
-## Todos
-* Rewrite the entire voyager part of the application, or at least refactor.
-* Potentially get rid of `/models` since the services doesn't need to know the entire structure of the listings/peers.
+(Documentation in progress.)
 
-# Installation
+# Prerequisites
+- Go Version 1.12 or higher
+
+# Building
 ```bash
-go get github.com/kimitzu-foundation/kimitzu-services
+go get -u -v github.com/kimitzu-foundation/kimitzu-services
+packr2
+go build services.go
 ```
+
+`Packr2` is used to package some external dependencies (location maps) for a single and compact build file.
 
 # Run
+## For Windows
 ```bash
-go run services
+./services.exe
 ```
 
-To enabled logging (loglevels 1 to 5)
+To enable logging (loglevels 1 to 5)
 ```bash
-go run services.go -log <logLevel>
+./services.exe --log <logLevel>
 ```
 
-
-# Testing
+## For Unix Systems
 ```bash
-go test ./... -v
+./services
 ```
 
+To enable logging (loglevels 1 to 5)
+```bash
+./services --log <logLevel>
+```
+
+# License
+
+[MPL-2.0](LICENSE).
