@@ -1,3 +1,9 @@
 data
 services
+services.exe
 .idea
+
+packrd
+
+servicestore/servicestore-packr.go
+location/location-packr.go
