@@ -40,7 +40,7 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 	// This makes sure that the findClosestPeers doesn't overfill the requests
 	// by limiting it to 5 concurrent calls.
 	log.Debug(fmt.Sprintf("Retrieving closest peers for %v", peer))
-    resp, err := grequests.Get("http://localhost:4002/ob/closestpeers/"+peer, reqOpt)
+    resp, err := grequests.Get("http://localhost:8100/ob/closestpeers/"+peer, reqOpt)
 	if err != nil {
 		log.Error("Peer resolve timeout for " + peer)
 	}
@@ -66,7 +66,7 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 func findPeers(peerlist chan<- string) {
 	for {
 		log.Debug("Looking for peers...")
-        resp, err := grequests.Get("http://localhost:4002/ob/peers", reqOpt)
+        resp, err := grequests.Get("http://localhost:8100/ob/peers", reqOpt)
 		if err != nil {
 			log.Error("Can't Load OpenBazaar Peers")
 			continue
@@ -85,13 +85,13 @@ func findPeers(peerlist chan<- string) {
 func getPeerData(peer string) (string, string, error) {
 	log.Debug("Retrieving Peer Data: " + peer)
 
-    profile, err := grequests.Get("http://localhost:4002/ob/profile/"+peer+"?usecache=false", reqOpt)
+    profile, err := grequests.Get("http://localhost:8100/ob/profile/"+peer+"?usecache=false", reqOpt)
 	if err != nil {
 		log.Error(fmt.Sprintln("Can't Retrieve peer data from "+peer, err))
 		return "", "", fmt.Errorf("Retrieve timeout")
 	}
 
-    listings, err := grequests.Get("http://localhost:4002/ob/listings/"+peer, reqOpt)
+    listings, err := grequests.Get("http://localhost:8100/ob/listings/"+peer, reqOpt)
 	if err != nil {
 		log.Error(fmt.Sprintln("Can't Retrive listing from peer "+peer, err))
 		return "", "", fmt.Errorf("Retrieve timeout")
@@ -106,7 +106,7 @@ func downloadFile(fileName string) {
 		return
 	}
 
-    file, err := grequests.Get("http://localhost:4002/ipfs/"+fileName, reqOpt)
+    file, err := grequests.Get("http://localhost:8100/ipfs/"+fileName, reqOpt)
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to download resource", err))
 	}
@@ -168,7 +168,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
 		ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
-		listingData, err := grequests.Get("http://localhost:4002/ob/listing/"+peer+"/"+listing.Slug, ro)
+		listingData, err := grequests.Get("http://localhost:8100/ob/listing/"+peer+"/"+listing.Slug, ro)
 
 		if err != nil {
 			log.Verbose(fmt.Sprintf("Failed to retrieve IPFS data of %v\n", listing.PeerSlug))
@@ -230,7 +230,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 }
 
 func GetSelfPeerID() string {
-    rdata, err := grequests.Get("http://localhost:4002/ob/profile/", reqOpt)
+    rdata, err := grequests.Get("http://localhost:8100/ob/profile/", reqOpt)
 	if err != nil {
 		return ""
 	}
@@ -281,7 +281,7 @@ func IsPeerOnline(peerid string) bool {
         return true
     }
 
-    lastOnline, err := grequests.Get("http://localhost:4002/ipns/"+peerid+"/lastOnline", reqOpt)
+    lastOnline, err := grequests.Get("http://localhost:8100/ipns/"+peerid+"/lastOnline", reqOpt)
     if err == nil {
         ts, err := strconv.Atoi(string(lastOnline.Bytes()))
         if err == nil {
@@ -293,7 +293,7 @@ func IsPeerOnline(peerid string) bool {
         }
     }
 
-    isOnline, err := grequests.Get("http://localhost:4002/ob/status/"+peerid+"?usecache=false", reqOpt)
+    isOnline, err := grequests.Get("http://localhost:8100/ob/status/"+peerid+"?usecache=false", reqOpt)
 	if err != nil {
 		return false
 	}

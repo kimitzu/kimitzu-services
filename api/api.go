@@ -399,7 +399,7 @@ func HTTPMedia(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		// If media is not found in data/images, fallback to ipfs
-		resp, err2 := http.Get("http://localhost:4002/ob/images/" + id)
+		resp, err2 := http.Get("http://localhost:8100/ob/images/" + id)
 		if err2 != nil {
 			http.Error(w, `{"error": "Media not found"}`, 404)
 			return

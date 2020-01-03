@@ -28,7 +28,7 @@ type KimitzuInfoP struct {
 }
 
 func getInfo() (KimitzuInfoP, error) {
-    res, err := grequests.Get("http://127.0.0.1:4002/kimitzu/info", &grequests.RequestOptions{RequestTimeout: time.Second * 10})
+    res, err := grequests.Get("http://127.0.0.1:8100/kimitzu/info", &grequests.RequestOptions{RequestTimeout: time.Second * 10})
 	if err != nil {
 		fmt.Println("Error", err)
         return KimitzuInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
@@ -40,7 +40,7 @@ func getInfo() (KimitzuInfoP, error) {
 }
 
 func patchConfig(username, password string, authenticate bool) (KimitzuInfoP, error) {
-    res, err := grequests.Post("http://127.0.0.1:4002/kimitzu/config", &grequests.RequestOptions{
+    res, err := grequests.Post("http://127.0.0.1:8100/kimitzu/config", &grequests.RequestOptions{
 		RequestTimeout: time.Second * 10,
 		JSON: map[string]interface{}{
 			"username":      username,
