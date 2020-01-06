@@ -25,6 +25,7 @@ API documentation can be found in [Postman API Docs](https://documenter.getpostm
 
 # Prerequisites
 - Go Version 1.12 or higher
+- Packr2: `go get -u github.com/gobuffalo/packr/v2/packr2`
 
 # Building
 ```bash
