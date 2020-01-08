@@ -13,4 +13,5 @@ type Daemon struct {
 	ShowHelp              bool
 	DatabasePath          string
 	BootstrapNodeIdentity string
+	Testnet				  bool
 }

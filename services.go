@@ -44,12 +44,20 @@ func init() {
 	flag.BoolVar(&confDaemon.GenerateNewKeys, "generate", true, "Generate new keys")
 	flag.BoolVar(&confDaemon.ShowHelp, "h", false, "Show help")
 	flag.IntVar(&roggy.LogLevel, "log", 2, "log level 0~5")
+	flag.BoolVar(&confDaemon.Testnet, "testnet", false, "Launch network on the testnet")
 
 	flag.Parse()
 
+	var folderPath = "kimitzu"
+
 	if confDaemon.DataPath == "&home" {
 		home, _ := homedir.Dir()
-		confDaemon.DataPath = path.Join(home, "kimitzu")
+
+		if confDaemon.Testnet {
+			folderPath = folderPath + "-testnet"
+		}
+
+		confDaemon.DataPath = path.Join(home, folderPath)
 	}
 
 	if confDaemon.DatabasePath == "&home" {
@@ -75,6 +83,12 @@ func main() {
 	log.Info(" --- --- --- --- --- ")
 	log.Infof("Log Level: %v", roggy.LogLevel)
 	log.Info("Starting Services")
+
+	if confDaemon.Testnet {
+		log.Info("Network: Testnet...")
+	} else {
+		log.Info("Network: Mainnet...")
+	}
 
 	store := servicestore.InitializeManagedStorage(confDaemon.DataPath)
 	p2pKillSig := make(chan int, 1)
