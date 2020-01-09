@@ -14,9 +14,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/nokusukun/particles/roggy"
-
 	"github.com/kimitzu/kimitzu-services/location"
+	"github.com/nokusukun/particles/roggy"
 
 	"github.com/kimitzu/kimitzu-services/servicestore"
 	"github.com/kimitzu/kimitzu-services/voyager"
@@ -29,9 +28,8 @@ var (
 )
 
 const (
-    TIMEOUT = time.Second * 30
+	TIMEOUT = time.Second * 30
 )
-
 
 type APIListResult struct {
 	Count     int           `json:"count"`
@@ -56,7 +54,7 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) bool {
 func HTTPFlushAll(w http.ResponseWriter, r *http.Request) {
 	store.Listings.FlushSE()
 	store.PeerData.FlushSE()
-    _, _ = fmt.Fprint(w, `{"result": "ok"}`)
+	_, _ = fmt.Fprint(w, `{"result": "ok"}`)
 }
 
 func HTTPPeerGetListings(w http.ResponseWriter, r *http.Request) {
@@ -67,9 +65,9 @@ func HTTPPeerGetListings(w http.ResponseWriter, r *http.Request) {
 	result := store.Listings.Search("")
 	jsn, err := result.ExportJSONArray()
 	if err == nil {
-        _, _ = fmt.Fprint(w, jsn)
+		_, _ = fmt.Fprint(w, jsn)
 	} else {
-        _, _ = fmt.Fprint(w, `{"error": "notFound"}`)
+		_, _ = fmt.Fprint(w, `{"error": "notFound"}`)
 	}
 }
 
@@ -88,63 +86,68 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
-    success := make(chan struct{})
+	ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+	success := make(chan struct{})
 
 	force := r.URL.Query().Get("force")
-    // docID, exists := store.PMap[qpeerid]
-    doc, err := store.PeerData.Get(qpeerid)
-    toReturn := `{"error": "retrieve timeout"}`
+	docID, exists := store.PMap[qpeerid]
+	toReturn := `{"error": "retrieve timeout"}`
 	message := ""
 	errCode := 500
 
-    go func() {
-        if doc != nil && force != "true" {
-            if err != nil {
-                toReturn = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
-            } else {
-                toReturn = string(doc.Content)
-            }
-        } else {
-            peerObj, err := voyager.DigestPeer(qpeerid, store)
-            if err != nil {
-                message = fmt.Sprintf("failed: %v", err)
-            } else {
-                _, err = store.PeerData.Insert(peerObj.ID, peerObj)
-                if err != nil {
-                    message = fmt.Sprintf("failed: %v", err)
-                    toReturn = `{"error": "` + message + `"}`
-                }
-            }
+	go func() {
+		if exists && docID != "" && force != "true" {
+			doc, err := store.PeerData.Get(docID)
+			if err != nil {
+				toReturn = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
+			} else {
+				toReturn = string(doc.Content)
+			}
+		} else {
+			var peerObjID string
+			peerObj, err := voyager.DigestPeer(qpeerid, store)
+			if err != nil {
+				store.SafePMapModify(func() {
+					store.PMap[qpeerid] = ""
+				})
+				message = "failed"
+			} else {
+				peerObjID, err = store.PeerData.Insert(peerObj.ID, peerObj)
+				if err != nil {
+					message = "failed"
+					toReturn = `{"error": "` + message + `"}`
+				}
+			}
 
 			// If nothing fails
-            if message != "failed" {
-                store.Listings.Commit()
-                store.PeerData.Commit()
+			if message != "failed" {
+				store.PMap[qpeerid] = peerObjID
+				store.Listings.Commit()
+				store.PeerData.Commit()
 
-                peerObjJSON, err := json.Marshal(peerObj)
-                if err != nil {
-                    toReturn = `{"error": "` + err.Error() + `"}`
-                }
-                toReturn = string(peerObjJSON)
-            } else {
-                toReturn = `{"error": "Not found and failed to digest"}`
-                errCode = 404
-            }
-        }
-        if strings.Contains(toReturn, "error") {
-            cancel()
-        } else {
-            success <- struct{}{}
-        }
-    }()
+				peerObjJSON, err := json.Marshal(peerObj)
+				if err != nil {
+					toReturn = `{"error": "` + err.Error() + `"}`
+				}
+				toReturn = string(peerObjJSON)
+			} else {
+				toReturn = `{"error": "Not found and failed to digest"}`
+				errCode = 404
+			}
+		}
+		if strings.Contains(toReturn, "error") {
+			cancel()
+		} else {
+			success <- struct{}{}
+		}
+	}()
 
-    select {
-    case <-success:
-        _, _ = fmt.Fprint(w, toReturn)
-    case <-ctx.Done():
-        http.Error(w, toReturn, errCode)
-    }
+	select {
+	case <-success:
+		_, _ = fmt.Fprint(w, toReturn)
+	case <-ctx.Done():
+		http.Error(w, toReturn, errCode)
+	}
 
 }
 
@@ -155,7 +158,7 @@ func HTTPPeers(w http.ResponseWriter, r *http.Request) {
 
 	peers := store.PeerData.Search("")
 	data, _ := peers.ExportJSONArray()
-    _, _ = fmt.Fprint(w, string(data))
+	_, _ = fmt.Fprint(w, string(data))
 }
 
 func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
@@ -163,43 +166,43 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-    success := make(chan struct{})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	success := make(chan struct{})
 	message := "success"
 
-    go func() {
-        peerID := r.URL.Query().Get("id")
-        peerObj, err := voyager.DigestPeer(peerID, store)
-        if err != nil {
-            // log.Error(err)
-            // store.PMap[peerID] = ""
-            store.PMapSet(peerID, "")
-            message = "failed"
-            cancel()
-        }
-        peerObjID, err := store.PeerData.Insert(peerObj.ID, peerObj)
-        if err != nil {
-            // panic(err)
-            message = "failed"
-            cancel()
-        }
+	go func() {
+		peerID := r.URL.Query().Get("id")
+		peerObj, err := voyager.DigestPeer(peerID, store)
+		if err != nil {
+			// log.Error(err)
+			// store.PMap[peerID] = ""
+			store.PMapSet(peerID, "")
+			message = "failed"
+			cancel()
+		}
+		peerObjID, err := store.PeerData.Insert(peerObj.ID, peerObj)
+		if err != nil {
+			// panic(err)
+			message = "failed"
+			cancel()
+		}
 
-        if message != "failed" {
-            //store.PMap[peerID] = peerObjID
-            store.PMapSet(peerID, peerObjID)
-            go store.Listings.FlushSE()
-            store.Listings.Commit()
-            store.PeerData.Commit()
-        }
-        success <- struct{}{}
-    }()
+		if message != "failed" {
+			//store.PMap[peerID] = peerObjID
+			store.PMapSet(peerID, peerObjID)
+			go store.Listings.FlushSE()
+			store.Listings.Commit()
+			store.PeerData.Commit()
+		}
+		success <- struct{}{}
+	}()
 
-    select {
-    case <-success:
-        _, _ = fmt.Fprint(w, "{\"result\": \""+message+"\"}")
-    case <-ctx.Done():
-        _, _ = fmt.Fprint(w, "{\"result\": \"failed\"}")
-    }
+	select {
+	case <-success:
+		_, _ = fmt.Fprint(w, "{\"result\": \""+message+"\"}")
+	case <-ctx.Done():
+		_, _ = fmt.Fprint(w, "{\"result\": \"failed\"}")
+	}
 }
 
 func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
@@ -409,20 +412,36 @@ func HTTPMedia(w http.ResponseWriter, r *http.Request) {
 	fileResponder(image, w)
 }
 
+func HTTPInfo(w http.ResponseWriter, r *http.Request) {
+	if retOK := setupResponse(&w, r); retOK {
+		return
+	}
+
+	type VersionInfo struct {
+		OBVersion             string `json:"obDaemon"`
+		KimitzuServiceVersion string `json:"kimitzuDaemon"`
+	}
+
+	info, _ := GetInfo()
+	versionInfo := VersionInfo{OBVersion: info.OBVersion, KimitzuServiceVersion: info.KimitzuServiceVersion}
+
+	json.NewEncoder(w).Encode(versionInfo)
+}
+
 func AppendAPIService(mux *http.ServeMux) {
-    mux.HandleFunc("/kimitzu/location/query", location.HTTPLocationQueryHandler)
-    mux.HandleFunc("/kimitzu/location/codesfrom", location.HTTPLocationCodesfromHandler)
+	mux.HandleFunc("/kimitzu/location/query", location.HTTPLocationQueryHandler)
+	mux.HandleFunc("/kimitzu/location/codesfrom", location.HTTPLocationCodesfromHandler)
 
-    mux.HandleFunc("/kimitzu/peers/listings", HTTPPeerGetListings)
-    mux.HandleFunc("/kimitzu/peer/get", HTTPPeerGet)
-    mux.HandleFunc("/kimitzu/peers", HTTPPeers)
-    mux.HandleFunc("/kimitzu/peer/add", HTTPPeerAdd)
-    mux.HandleFunc("/kimitzu/peer/search", HTTPPeerSearch)
+	mux.HandleFunc("/kimitzu/peers/listings", HTTPPeerGetListings)
+	mux.HandleFunc("/kimitzu/peer/get", HTTPPeerGet)
+	mux.HandleFunc("/kimitzu/peers", HTTPPeers)
+	mux.HandleFunc("/kimitzu/peer/add", HTTPPeerAdd)
+	mux.HandleFunc("/kimitzu/peer/search", HTTPPeerSearch)
 
-    mux.HandleFunc("/kimitzu/listing", HTTPListing)
-    mux.HandleFunc("/kimitzu/search", HTTPListingSearch)
+	mux.HandleFunc("/kimitzu/listing", HTTPListing)
+	mux.HandleFunc("/kimitzu/search", HTTPListingSearch)
 
-    mux.HandleFunc("/kimitzu/media", HTTPMedia)
+	mux.HandleFunc("/kimitzu/media", HTTPMedia)
 }
 
 func AttachStore(store_ *servicestore.MainManagedStorage) {
@@ -432,23 +451,24 @@ func AttachStore(store_ *servicestore.MainManagedStorage) {
 func AttachAPI(log *roggy.LogPrinter, router *mux.Router) {
 	log.Info("Starting HTTP Service")
 
-    router.HandleFunc("/kimitzu/location/query", location.HTTPLocationQueryHandler)
-    router.HandleFunc("/kimitzu/location/codesfrom", location.HTTPLocationCodesfromHandler)
+	router.HandleFunc("/kimitzu/location/query", location.HTTPLocationQueryHandler)
+	router.HandleFunc("/kimitzu/location/codesfrom", location.HTTPLocationCodesfromHandler)
 
-    router.HandleFunc("/kimitzu/peers/listings", HTTPPeerGetListings)
-    router.HandleFunc("/kimitzu/peer/get", HTTPPeerGet)
-    router.HandleFunc("/kimitzu/peers", HTTPPeers)
-    router.HandleFunc("/kimitzu/peer/add", HTTPPeerAdd)
-    router.HandleFunc("/kimitzu/peer/search", HTTPPeerSearch)
+	router.HandleFunc("/kimitzu/peers/listings", HTTPPeerGetListings)
+	router.HandleFunc("/kimitzu/peer/get", HTTPPeerGet)
+	router.HandleFunc("/kimitzu/peers", HTTPPeers)
+	router.HandleFunc("/kimitzu/peer/add", HTTPPeerAdd)
+	router.HandleFunc("/kimitzu/peer/search", HTTPPeerSearch)
 
-    router.HandleFunc("/kimitzu/listing", HTTPListing)
-    router.HandleFunc("/kimitzu/search", HTTPListingSearch)
+	router.HandleFunc("/kimitzu/listing", HTTPListing)
+	router.HandleFunc("/kimitzu/search", HTTPListingSearch)
 
-    router.HandleFunc("/kimitzu/media", HTTPMedia)
+	router.HandleFunc("/kimitzu/media", HTTPMedia)
 
 	router.HandleFunc("/authenticate", Authenticate)
 
 	router.HandleFunc("/debug/flush", HTTPFlushAll)
+	router.HandleFunc("/info/version", HTTPInfo)
 
 	//log.Info("Serving at 0.0.0.0:8109")
 	//http.ListenAndServe(":8109", nil)

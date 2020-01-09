@@ -9,8 +9,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kimitzu/kimitzu-services/configs"
+
 	"github.com/levigross/grequests"
 )
+
+var ServiceConfig configs.Daemon
 
 type AuthPayload struct {
 	Username    string `json:"username"`
@@ -20,27 +24,30 @@ type AuthPayload struct {
 }
 
 type KimitzuInfoP struct {
-	Repo          string `json:"repoPath"`
-	Cookie        string `json:"cookie"`
-	Username      string `json:"username"`
-	Password      string `json:"password"`
-	Authenticated bool   `json:"authenticated"`
+	Repo                  string `json:"repoPath"`
+	Cookie                string `json:"cookie"`
+	Username              string `json:"username"`
+	Password              string `json:"password"`
+	Authenticated         bool   `json:"authenticated"`
+	OBVersion             string `json:"obVersion"`
+	KimitzuServiceVersion string `json:"kimitzuVersion"`
 }
 
-func getInfo() (KimitzuInfoP, error) {
-    res, err := grequests.Get("http://127.0.0.1:8100/kimitzu/info", &grequests.RequestOptions{RequestTimeout: time.Second * 10})
+func GetInfo() (KimitzuInfoP, error) {
+	res, err := grequests.Get("http://127.0.0.1:8100/kimitzu/info", &grequests.RequestOptions{RequestTimeout: time.Second * 10})
 	if err != nil {
 		fmt.Println("Error", err)
-        return KimitzuInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
-    }
+		return KimitzuInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
+	}
 
-    info := KimitzuInfoP{}
+	info := KimitzuInfoP{}
+	info.KimitzuServiceVersion = ServiceConfig.Version
 	json.Unmarshal(res.Bytes(), &info)
 	return info, nil
 }
 
 func patchConfig(username, password string, authenticate bool) (KimitzuInfoP, error) {
-    res, err := grequests.Post("http://127.0.0.1:8100/kimitzu/config", &grequests.RequestOptions{
+	res, err := grequests.Post("http://127.0.0.1:8100/kimitzu/config", &grequests.RequestOptions{
 		RequestTimeout: time.Second * 10,
 		JSON: map[string]interface{}{
 			"username":      username,
@@ -51,10 +58,10 @@ func patchConfig(username, password string, authenticate bool) (KimitzuInfoP, er
 
 	if err != nil {
 		fmt.Println("Error", err)
-        return KimitzuInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
-    }
+		return KimitzuInfoP{}, fmt.Errorf("Can't resolve node, probably offline")
+	}
 
-    info := KimitzuInfoP{}
+	info := KimitzuInfoP{}
 	json.Unmarshal(res.Bytes(), &info)
 	return info, nil
 }
@@ -80,7 +87,7 @@ func Authenticate(w http.ResponseWriter, r *http.Request) {
 	h := sha256.Sum256([]byte(payload.Password))
 	password := hex.EncodeToString(h[:])
 
-	info, err := getInfo()
+	info, err := GetInfo()
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
