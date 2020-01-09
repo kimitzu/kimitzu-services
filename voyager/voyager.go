@@ -250,22 +250,21 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 		if val, exists := retryPeers[peer]; exists && val >= 5 {
 			continue
 		}
-        if _, exists := store.PMap[peer]; !exists {
+
+        if _, err := store.PeerData.Get(peer); err != nil {
 			log.Debug("Digesting Peer: " + peer)
 			log.Debug("Found Peer: " + peer)
 			peerObj, err := DigestPeer(peer, store)
 			if err != nil {
 				log.Error(err)
                 //store.PMap[peer] = ""
-                store.PMapSet(peer, "")
 				continue
 			}
-            peerObjID, err := store.PeerData.Insert(peerObj.ID, peerObj)
+            _, err = store.PeerData.Insert(peerObj.ID, peerObj)
 			if err != nil {
 				panic(err)
 			}
             //store.PMap[peer] = peerObjID
-            store.PMapSet(peer, peerObjID)
 			store.Listings.Commit()
 			store.PeerData.Commit()
 		} else {
