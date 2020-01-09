@@ -92,38 +92,33 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
     success := make(chan struct{})
 
 	force := r.URL.Query().Get("force")
-    docID, exists := store.PMap[qpeerid]
+    // docID, exists := store.PMap[qpeerid]
+    doc, err := store.PeerData.Get(qpeerid)
     toReturn := `{"error": "retrieve timeout"}`
 	message := ""
 	errCode := 500
 
     go func() {
-        if exists && docID != "" && force != "true" {
-            doc, err := store.PeerData.Get(docID)
+        if doc != nil && force != "true" {
             if err != nil {
                 toReturn = fmt.Sprintf(`{"error": "failedToRetrievePeer", "details": "%v"}`, err)
             } else {
                 toReturn = string(doc.Content)
             }
         } else {
-            var peerObjID string
             peerObj, err := voyager.DigestPeer(qpeerid, store)
             if err != nil {
-                store.SafePMapModify(func() {
-                    store.PMap[qpeerid] = ""
-                })
-                message = "failed"
+                message = fmt.Sprintf("failed: %v", err)
             } else {
-                peerObjID, err = store.PeerData.Insert(peerObj.ID, peerObj)
+                _, err = store.PeerData.Insert(peerObj.ID, peerObj)
                 if err != nil {
-                    message = "failed"
+                    message = fmt.Sprintf("failed: %v", err)
                     toReturn = `{"error": "` + message + `"}`
                 }
             }
 
 			// If nothing fails
             if message != "failed" {
-                store.PMap[qpeerid] = peerObjID
                 store.Listings.Commit()
                 store.PeerData.Commit()
 

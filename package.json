@@ -1,16 +1,3 @@
-{
-  "name": "kimitzu-services",
-  "version": "0.2.0-alpha.1",
-  "description": "A collection of Kimitzu APIs that interface with Kimitzu-Go",
-  "main": "services.go",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kimitzu/kimitzu-services.git"
-  },
-  "author": "Kimitzu Foundation",
-  "license": "MPL-2.0",
-  "bugs": {
-    "url": "https://github.com/kimitzu/kimitzu-services/issues"
-  },
-  "homepage": "https://github.com/kimitzu/kimitzu-services#readme"
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:09452ff8be38fec32e964629fae39559ad16bea5c0202864985a7b80e4511d31
+size 482
