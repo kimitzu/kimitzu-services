@@ -68,7 +68,7 @@ func init() {
 		confDaemon.KeyPath = path.Join(confDaemon.DataPath, "p2pkeys")
 	}
 
-	confDaemon.Version = "0.2.0-alpha.1"
+	confDaemon.Version = "0.2.0-beta"
 	api.ServiceConfig = confDaemon
 }
 
