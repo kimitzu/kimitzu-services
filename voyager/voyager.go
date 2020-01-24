@@ -15,22 +15,22 @@ import (
 	"time"
 
 	"github.com/levigross/grequests"
-    "github.com/nokusukun/particles/roggy"
+	"github.com/nokusukun/particles/roggy"
 
 	"github.com/kimitzu/kimitzu-services/models"
 	"github.com/kimitzu/kimitzu-services/servicestore"
 )
 
 const (
-    MaxLastOnline = 259200
+	MaxLastOnline = 259200
 )
 
 var (
 	peerStream chan string
 	retryPeers map[string]int
-    log        *roggy.LogPrinter
+	log        *roggy.LogPrinter
 	store      *servicestore.MainManagedStorage
-    MyPeerID   string
+	MyPeerID   string
 )
 
 var reqOpt = &grequests.RequestOptions{RequestTimeout: 70 * time.Second}
@@ -40,7 +40,7 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 	// This makes sure that the findClosestPeers doesn't overfill the requests
 	// by limiting it to 5 concurrent calls.
 	log.Debug(fmt.Sprintf("Retrieving closest peers for %v", peer))
-    resp, err := grequests.Get("http://localhost:8100/ob/closestpeers/"+peer, reqOpt)
+	resp, err := grequests.Get("http://localhost:8100/ob/closestpeers/"+peer, reqOpt)
 	if err != nil {
 		log.Error("Peer resolve timeout for " + peer)
 	}
@@ -66,7 +66,7 @@ func findClosestPeers(peer string, peerlist chan<- string) {
 func findPeers(peerlist chan<- string) {
 	for {
 		log.Debug("Looking for peers...")
-        resp, err := grequests.Get("http://localhost:8100/ob/peers", reqOpt)
+		resp, err := grequests.Get("http://localhost:8100/ob/peers", reqOpt)
 		if err != nil {
 			log.Error("Can't Load OpenBazaar Peers")
 			continue
@@ -85,13 +85,13 @@ func findPeers(peerlist chan<- string) {
 func getPeerData(peer string) (string, string, error) {
 	log.Debug("Retrieving Peer Data: " + peer)
 
-    profile, err := grequests.Get("http://localhost:8100/ob/profile/"+peer+"?usecache=false", reqOpt)
+	profile, err := grequests.Get("http://localhost:8100/ob/profile/"+peer+"?usecache=false", reqOpt)
 	if err != nil {
 		log.Error(fmt.Sprintln("Can't Retrieve peer data from "+peer, err))
 		return "", "", fmt.Errorf("Retrieve timeout")
 	}
 
-    listings, err := grequests.Get("http://localhost:8100/ob/listings/"+peer, reqOpt)
+	listings, err := grequests.Get("http://localhost:8100/ob/listings/"+peer, reqOpt)
 	if err != nil {
 		log.Error(fmt.Sprintln("Can't Retrive listing from peer "+peer, err))
 		return "", "", fmt.Errorf("Retrieve timeout")
@@ -106,7 +106,7 @@ func downloadFile(fileName string) {
 		return
 	}
 
-    file, err := grequests.Get("http://localhost:8100/ipfs/"+fileName, reqOpt)
+	file, err := grequests.Get("http://localhost:8100/ipfs/"+fileName, reqOpt)
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to download resource", err))
 	}
@@ -168,7 +168,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		listing.PeerSlug = peer + ":" + listing.Slug
 		listing.ParentPeer = peer
 		ro := &grequests.RequestOptions{RequestTimeout: 30 * time.Second}
-		listingData, err := grequests.Get("http://localhost:8100/ob/listing/"+peer+"/"+listing.Slug, ro)
+		listingData, err := grequests.Get("http://localhost:8100/ob/listing/ipfs/"+listing.Hash, ro)
 
 		if err != nil {
 			log.Verbose(fmt.Sprintf("Failed to retrieve IPFS data of %v\n", listing.PeerSlug))
@@ -180,12 +180,17 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 			continue
 		}
 		ipfsListing := models.IPFSListing{}
-
+		fmt.Println("listing data string:", listingData.String())
+		fmt.Println("listing data statuscode:", listingData.StatusCode)
 		err = json.Unmarshal([]byte(listingData.String()), &ipfsListing)
+
+		if err != nil {
+			log.Error("Failed to Unmarhsal json:", peer, listing.Hash, err)
+		}
 
 		if ipfsListing.Listing.Metadata.ContractType != "SERVICE" {
 			log.Verbose(
-				fmt.Sprintf("Skipping: %v, Service Type is: %v", ipfsListing.Listing.Slug, ipfsListing.Listing.Metadata.ContractType))
+				fmt.Sprintf("Skipping: %v, `Service Type is: %v", ipfsListing.Listing.Slug, ipfsListing.Listing.Metadata.ContractType))
 			continue
 		}
 
@@ -199,7 +204,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		// this is because the /ob/listing data needs to coalesce with
 		// the old model. It's hacky I know, but GO doesn't really have
 		// an equivalent to Python's dict.update()
-        // TODO: Change this
+		// TODO: Change this
 		classListing := ipfsListing.Listing
 		oldListingDat, err := json.Marshal(listing)
 		if err != nil {
@@ -212,7 +217,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		if existing.Count == 1 {
 			store.Listings.Update(existing.Documents[0].ID, classListing)
 		} else {
-            store.Listings.Insert(classListing.Hash, classListing)
+			store.Listings.Insert(classListing.Hash, classListing)
 		}
 
 		go downloadFile(listing.Thumbnail.Medium)
@@ -220,9 +225,9 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 		go downloadFile(listing.Thumbnail.Tiny)
 	}
 
-    log.Verbose("Committing Listings", peerJSON["name"])
+	log.Verbose("Committing Listings", peerJSON["name"])
 	store.Listings.Commit()
-    log.Verbose(" id  > ", peerJSON["name"], len(peerListings))
+	log.Verbose(" id  > ", peerJSON["name"], len(peerListings))
 	return &models.Peer{
 		ID:       peer,
 		RawMap:   peerJSON,
@@ -230,7 +235,7 @@ func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Pe
 }
 
 func GetSelfPeerID() string {
-    rdata, err := grequests.Get("http://localhost:8100/ob/profile/", reqOpt)
+	rdata, err := grequests.Get("http://localhost:8100/ob/profile/", reqOpt)
 	if err != nil {
 		return ""
 	}
@@ -251,20 +256,20 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 			continue
 		}
 
-        if _, err := store.PeerData.Get(peer); err != nil {
+		if _, err := store.PeerData.Get(peer); err != nil {
 			log.Debug("Digesting Peer: " + peer)
 			log.Debug("Found Peer: " + peer)
 			peerObj, err := DigestPeer(peer, store)
 			if err != nil {
 				log.Error(err)
-                //store.PMap[peer] = ""
+				//store.PMap[peer] = ""
 				continue
 			}
-            _, err = store.PeerData.Insert(peerObj.ID, peerObj)
+			_, err = store.PeerData.Insert(peerObj.ID, peerObj)
 			if err != nil {
 				panic(err)
 			}
-            //store.PMap[peer] = peerObjID
+			//store.PMap[peer] = peerObjID
 			store.Listings.Commit()
 			store.PeerData.Commit()
 		} else {
@@ -276,23 +281,23 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 }
 
 func IsPeerOnline(peerid string) bool {
-    if peerid == MyPeerID {
-        return true
-    }
+	if peerid == MyPeerID {
+		return true
+	}
 
-    lastOnline, err := grequests.Get("http://localhost:8100/ipns/"+peerid+"/lastOnline", reqOpt)
-    if err == nil {
-        ts, err := strconv.Atoi(string(lastOnline.Bytes()))
-        if err == nil {
-            if time.Now().Unix()-int64(ts) < 259200 {
-                return true
-            } else {
-                return false
-            }
-        }
-    }
+	lastOnline, err := grequests.Get("http://localhost:8100/ipns/"+peerid+"/lastOnline", reqOpt)
+	if err == nil {
+		ts, err := strconv.Atoi(string(lastOnline.Bytes()))
+		if err == nil {
+			if time.Now().Unix()-int64(ts) < 259200 {
+				return true
+			} else {
+				return false
+			}
+		}
+	}
 
-    isOnline, err := grequests.Get("http://localhost:8100/ob/status/"+peerid+"?usecache=false", reqOpt)
+	isOnline, err := grequests.Get("http://localhost:8100/ob/status/"+peerid+"?usecache=false", reqOpt)
 	if err != nil {
 		return false
 	}
@@ -310,9 +315,9 @@ func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedSt
 	peerStream = make(chan string, 1000)
 	retryPeers = make(map[string]int)
 
-    MyPeerID = GetSelfPeerID()
-    if MyPeerID != "" {
-        peerStream <- MyPeerID
+	MyPeerID = GetSelfPeerID()
+	if MyPeerID != "" {
+		peerStream <- MyPeerID
 	}
 
 	ensureDir(path.Join(store.StorePath, "images", ".test"))
@@ -324,8 +329,8 @@ func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedSt
 	for _, doc := range peers.Documents {
 		interfpeer := models.Peer{}
 		doc.Export(&interfpeer)
-        // store.PMap[interfpeer.ID] = doc.ID
-        store.PMapSet(interfpeer.ID, doc.ID)
+		// store.PMap[interfpeer.ID] = doc.ID
+		store.PMapSet(interfpeer.ID, doc.ID)
 	}
 
 	// Digests found peers
@@ -339,7 +344,7 @@ func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedSt
 			peers := store.PeerData.Search("")
 			for _, peerD := range peers.Documents {
 				peer := models.Peer{}
-                _ = peerD.Export(&peer)
+				_ = peerD.Export(&peer)
 
 				if peer.ID == "" {
 					log.Error(fmt.Sprintf("Failed to load peer from database: %v", peerD.ID))
@@ -351,17 +356,17 @@ func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedSt
 					log.Debug(fmt.Sprintln("Refreshing peer", peer.ID))
 					d, err := DigestPeer(peer.ID, store)
 					if err != nil {
-                        log.Error(fmt.Sprintln("Failed to refresh ", peer.ID, err))
+						log.Error(fmt.Sprintln("Failed to refresh ", peer.ID, err))
 					} else {
 						d.LastPing = time.Now().Unix()
-                        _ = store.PeerData.Update(peer.ID, d)
+						_ = store.PeerData.Update(peer.ID, d)
 					}
 
 					log.Debug(fmt.Sprintln("Finished refreshing", peer.ID))
 
-                } else if (time.Now().Unix() - peer.LastPing) > MaxLastOnline {
-                    log.Debug(fmt.Sprintln("Disposing Peer ", peer.ID, "\nDeadline: ", time.Now().Unix(), peer.LastPing, time.Now().Unix()-peer.LastPing))
-                    _ = clearListings(peer.ID)
+				} else if (time.Now().Unix() - peer.LastPing) > MaxLastOnline {
+					log.Debug(fmt.Sprintln("Disposing Peer ", peer.ID, "\nDeadline: ", time.Now().Unix(), peer.LastPing, time.Now().Unix()-peer.LastPing))
+					_ = clearListings(peer.ID)
 				}
 			}
 			time.Sleep(time.Minute * 30)

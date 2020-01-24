@@ -2,6 +2,7 @@ data
 services
 services.exe
 .idea
+.DS_Store
 
 packrd
 
