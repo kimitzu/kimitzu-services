@@ -38,6 +38,12 @@ type IPFSListing struct {
 	Signature string       `json:"signature"`
 }
 
+type Contact struct {
+	email       string `json:"email"`
+	phoneNumber string `json:"phoneNumber"`
+	website     string `json:"website"`
+}
+
 type ListingClass struct {
 	Slug               string           `json:"slug"`
 	VendorID           VendorID         `json:"vendorID"`
@@ -49,6 +55,7 @@ type ListingClass struct {
 	Moderators         []string         `json:"moderators"`
 	TermsAndConditions string           `json:"termsAndConditions"`
 	RefundPolicy       string           `json:"refundPolicy"`
+	Contact            Contact          `json:"contact"`
 
 	AverageRating int64     `json:"averageRating"`
 	Hash          string    `json:"hash"`
