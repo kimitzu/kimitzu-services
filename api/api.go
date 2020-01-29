@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	store *servicestore.MainManagedStorage
+	store *servicestore.Store
 )
 
 const (
@@ -55,7 +55,7 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) bool {
 
 func HTTPFlushAll(w http.ResponseWriter, r *http.Request) {
 	store.Listings.FlushSE()
-	store.PeerData.FlushSE()
+	store.Peers.FlushSE()
     _, _ = fmt.Fprint(w, `{"result": "ok"}`)
 }
 
@@ -93,7 +93,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 
 	force := r.URL.Query().Get("force")
     // docID, exists := store.PMap[qpeerid]
-    doc, err := store.PeerData.Get(qpeerid)
+	doc, err := store.Peers.Get(qpeerid)
     toReturn := `{"error": "retrieve timeout"}`
 	message := ""
 	errCode := 500
@@ -110,7 +110,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
             if err != nil {
                 message = fmt.Sprintf("failed: %v", err)
             } else {
-                _, err = store.PeerData.Insert(peerObj.ID, peerObj)
+				_, err = store.Peers.Insert(peerObj.ID, peerObj)
                 if err != nil {
                     message = fmt.Sprintf("failed: %v", err)
                     toReturn = `{"error": "` + message + `"}`
@@ -120,7 +120,7 @@ func HTTPPeerGet(w http.ResponseWriter, r *http.Request) {
 			// If nothing fails
             if message != "failed" {
                 store.Listings.Commit()
-                store.PeerData.Commit()
+				store.Peers.Commit()
 
                 peerObjJSON, err := json.Marshal(peerObj)
                 if err != nil {
@@ -153,7 +153,7 @@ func HTTPPeers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peers := store.PeerData.Search("")
+	peers := store.Peers.Search("")
 	data, _ := peers.ExportJSONArray()
     _, _ = fmt.Fprint(w, string(data))
 }
@@ -177,7 +177,7 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
             message = "failed"
             cancel()
         }
-        peerObjID, err := store.PeerData.Insert(peerObj.ID, peerObj)
+		peerObjID, err := store.Peers.Insert(peerObj.ID, peerObj)
         if err != nil {
             // panic(err)
             message = "failed"
@@ -189,7 +189,7 @@ func HTTPPeerAdd(w http.ResponseWriter, r *http.Request) {
             store.PMapSet(peerID, peerObjID)
             go store.Listings.FlushSE()
             store.Listings.Commit()
-            store.PeerData.Commit()
+			store.Peers.Commit()
         }
         success <- struct{}{}
     }()
@@ -213,7 +213,7 @@ func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if store.PeerData.Size() == 0 {
+	if store.Peers.Size() == 0 {
 		http.Error(w, `{"error": "empty database"}`, 204)
 		return
 	}
@@ -227,7 +227,7 @@ func HTTPPeerSearch(w http.ResponseWriter, r *http.Request) {
 
 	//log.Verbose("[/peer/search] Parameter [query=" + params.Query + "]")
 
-	results := store.PeerData.Search(params.Query)
+	results := store.Peers.Search(params.Query)
 
 	if len(params.Filters) != 0 {
 		for _, filter := range params.Filters {
@@ -425,7 +425,7 @@ func AppendAPIService(mux *http.ServeMux) {
     mux.HandleFunc("/kimitzu/media", HTTPMedia)
 }
 
-func AttachStore(store_ *servicestore.MainManagedStorage) {
+func AttachStore(store_ *servicestore.Store) {
 	store = store_
 }
 

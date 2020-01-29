@@ -10,39 +10,39 @@ import (
 	"github.com/kimitzu/kimitzu-services/models"
 )
 
-// MainStorage is defunct, user MainManagedStorage
-type MainStorage struct {
+// _MainStorage is defunct, user Store
+type _MainStorage struct {
 	PeerData map[string]*models.Peer
 	Listings []*models.Listing
 }
 
-// MainManagedStorage holds the storage stuff
+// Store holds the storage stuff
 //	PMap is the peer mapping of the peerID to the chunk peerDocumentID
-type MainManagedStorage struct {
+type Store struct {
     PMap      map[string]string
     PMapLock  *sync.RWMutex
-	PeerData  *gomenasai.Gomenasai
+	Peers     *gomenasai.Gomenasai
 	Listings  *gomenasai.Gomenasai
 	StorePath string
 }
 
-func (m *MainManagedStorage) SafePMapModify(function func()) {
+func (m *Store) SafePMapModify(function func()) {
     m.PMapLock.Lock()
     function()
     m.PMapLock.Unlock()
 }
 
-func (m *MainManagedStorage) PMapSet(id, val string) {
+func (m *Store) PMapSet(id, val string) {
     m.SafePMapModify(func() {
         m.PMap[id] = val
     })
 }
 
-// InitializeManagedStorage - Initializes and returns a MainStorage instance,
+// InitializeManagedStorage - Initializes and returns a _MainStorage instance,
 // 		pass this around the various services, acts as like the centraliezd
 // 		storage for the listings and Peer Data
-func InitializeManagedStorage(rootPath string) *MainManagedStorage {
-	store := MainManagedStorage{}
+func InitializeManagedStorage(rootPath string) *Store {
+	store := Store{}
     store.PMapLock = &sync.RWMutex{}
     store.PMap = make(map[string]string)
 	store.StorePath = rootPath
@@ -53,7 +53,7 @@ func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 	peerStoreConfig := &gomenasai.GomenasaiConfig{
 		Name:       "peers",
 		Path:       peerStorePath,
-		IndexPaths: []string{"$.profile.name", "$.profile.shortDescription"},
+		IndexPaths: []string{"$.name", "$.shortDescription"},
 	}
 
 	listingStoreConfig := &gomenasai.GomenasaiConfig{
@@ -64,7 +64,7 @@ func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 			"$.item.title",
 			"$.metadata.serviceClassification",
 			"$.hash",
-			"$.vendorID",
+			"$.vendorID.peerID",
 		},
 	}
 
@@ -73,13 +73,13 @@ func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 		if err != nil {
 			panic(fmt.Errorf("Failed to load peer database: %v", err))
 		}
-		store.PeerData = peerdata
+		store.Peers = peerdata
 	} else {
 		peerdata, err := gomenasai.New(peerStoreConfig)
 		if err != nil {
 			panic(fmt.Errorf("Failed to create listing database: %v", err))
 		}
-		store.PeerData = peerdata
+		store.Peers = peerdata
 	}
 
 	if gomenasai.Exists(listingStorePath) {
@@ -101,13 +101,3 @@ func InitializeManagedStorage(rootPath string) *MainManagedStorage {
 	return &store
 }
 
-// InitializeStore -  is defunct, use InitializeManagedStorage
-// InitializeStore - Initializes and returns a MainStorage instance,
-// 		pass this around the various services, acts as like the centraliezd
-// 		storage for the listings and Peer Data
-func InitializeStore() *MainStorage {
-	store := MainStorage{}
-	store.PeerData = make(map[string]*models.Peer)
-	store.Listings = []*models.Listing{}
-	return &store
-}

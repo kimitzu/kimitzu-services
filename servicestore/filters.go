@@ -56,11 +56,11 @@ func like(a, b string) bool {
 }
 
 // LoadCustomEngine loads a custom gval.Language to extend the capabilities of the Filters.
-func LoadCustomEngine(store *MainManagedStorage) gval.Language {
+func LoadCustomEngine(store *Store) gval.Language {
 
 	getProps := func(profileId string) []map[string]string {
 		fmt.Println("getProps", profileId)
-		result, err := store.PeerData.Get(profileId)
+        result, err := store.Peers.Get(profileId)
 
 		if err != nil {
 			return nil
@@ -127,7 +127,7 @@ func LoadCustomEngine(store *MainManagedStorage) gval.Language {
 
 		// `getProfile(doc.peerId)["age"]["min"] > 14`
 		gval.Function("getProfile", func(profileId string) map[string]interface{} {
-			profile := store.PeerData.Search(profileId)
+            profile := store.Peers.Search(profileId)
 			if profile.Count == 0 {
 				return make(map[string]interface{})
 			}

@@ -29,7 +29,7 @@ var (
 	peerStream chan string
 	retryPeers map[string]int
     log        *roggy.LogPrinter
-	store      *servicestore.MainManagedStorage
+	store      *servicestore.Store
     MyPeerID   string
 )
 
@@ -138,7 +138,7 @@ func clearListings(peer string) error {
 
 // DigestPeer downloads the peer data and packages it in an easy to use struct.
 //		Downloads the listings and stores them in the database as well.
-func DigestPeer(peer string, store *servicestore.MainManagedStorage) (*models.Peer, error) {
+func DigestPeer(peer string, store *servicestore.Store) (*models.Peer, error) {
 	peerDat, listingDat, err := getPeerData(peer)
 	if err != nil {
 		val, exists := retryPeers[peer]
@@ -243,7 +243,7 @@ func GetSelfPeerID() string {
 	return ""
 }
 
-func DigestService(peerStream chan string, store_ *servicestore.MainManagedStorage) {
+func DigestService(peerStream chan string, store_ *servicestore.Store) {
 	store = store_
 	for peer := range peerStream {
 		log.Debug("Recieved peer...")
@@ -251,7 +251,7 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
 			continue
 		}
 
-        if _, err := store.PeerData.Get(peer); err != nil {
+		if _, err := store.Peers.Get(peer); err != nil {
 			log.Debug("Digesting Peer: " + peer)
 			log.Debug("Found Peer: " + peer)
 			peerObj, err := DigestPeer(peer, store)
@@ -260,13 +260,13 @@ func DigestService(peerStream chan string, store_ *servicestore.MainManagedStora
                 //store.PMap[peer] = ""
 				continue
 			}
-            _, err = store.PeerData.Insert(peerObj.ID, peerObj)
+			_, err = store.Peers.Insert(peerObj.ID, peerObj)
 			if err != nil {
 				panic(err)
 			}
             //store.PMap[peer] = peerObjID
 			store.Listings.Commit()
-			store.PeerData.Commit()
+			store.Peers.Commit()
 		} else {
 			log.Debug("Peer alreaday exists: " + peer)
 		}
@@ -304,7 +304,7 @@ func IsPeerOnline(peerid string) bool {
 }
 
 // RunVoyagerService - Starts the voyager service. Handles the crawling of the nodes for the listings.
-func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedStorage) {
+func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.Store) {
 	log = logP
 	log.Info("Starting Voyager Service")
 	peerStream = make(chan string, 1000)
@@ -318,7 +318,7 @@ func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedSt
 	ensureDir(path.Join(store.StorePath, "images", ".test"))
 	go findPeers(peerStream)
 
-	peers := store.PeerData.Search("")
+	peers := store.Peers.Search("")
 
 	log.Debug("Creating PeerMap")
 	for _, doc := range peers.Documents {
@@ -336,7 +336,7 @@ func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedSt
 	go func() {
 		log.Debug("Starting Ping Service")
 		for {
-			peers := store.PeerData.Search("")
+			peers := store.Peers.Search("")
 			for _, peerD := range peers.Documents {
 				peer := models.Peer{}
                 _ = peerD.Export(&peer)
@@ -354,7 +354,7 @@ func RunVoyagerService(logP *roggy.LogPrinter, store *servicestore.MainManagedSt
                         log.Error(fmt.Sprintln("Failed to refresh ", peer.ID, err))
 					} else {
 						d.LastPing = time.Now().Unix()
-                        _ = store.PeerData.Update(peer.ID, d)
+						_ = store.Peers.Update(peer.ID, d)
 					}
 
 					log.Debug(fmt.Sprintln("Finished refreshing", peer.ID))

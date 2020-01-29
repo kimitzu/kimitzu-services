@@ -13,13 +13,12 @@ import (
 	"github.com/nokusukun/particles/config"
 	"github.com/nokusukun/particles/roggy"
 
-	"github.com/kimitzu/kimitzu-services/api"
 	"github.com/kimitzu/kimitzu-services/configs"
-	"github.com/kimitzu/kimitzu-services/p2p"
-
+	"github.com/kimitzu/kimitzu-services/api"
 	"github.com/kimitzu/kimitzu-services/location"
+	"github.com/kimitzu/kimitzu-services/p2p"
+	"github.com/kimitzu/kimitzu-services/pilgrim"
 	"github.com/kimitzu/kimitzu-services/servicestore"
-	"github.com/kimitzu/kimitzu-services/voyager"
 )
 
 var (
@@ -43,12 +42,12 @@ func init() {
 	flag.StringVar(&confDaemon.KeyPath, "key", "&home", "Read/write key from/to path")
 	flag.BoolVar(&confDaemon.GenerateNewKeys, "generate", true, "Generate new keys")
 	flag.BoolVar(&confDaemon.ShowHelp, "h", false, "Show help")
-	flag.IntVar(&roggy.LogLevel, "log", 2, "log level 0~5")
+	flag.IntVar(&roggy.LogLevel, "log", 5, "log level 0~5")
 	flag.BoolVar(&confDaemon.Testnet, "testnet", false, "Launch network on the testnet")
 
 	flag.Parse()
 
-	var folderPath = "kimitzu"
+	var folderPath = "kimitzu-pilgrim"
 
 	if confDaemon.DataPath == "&home" {
 		home, _ := homedir.Dir()
@@ -101,20 +100,31 @@ func main() {
 		panic(err)
 	}
 
-	// test(&srvLog, log, store)
 	apiRouter := mux.NewRouter()
-
 	time.Sleep(time.Second * 10)
+
+	// P2P Bootstrap Service
 	go p2p.Bootstrap(&confDaemon, &confSat, ratingManager, p2pKillSig)
-	go voyager.RunVoyagerService(log.Sub("voyager"), store)
+
+	// Pilgrim Service
+	pilgrimManager := pilgrim.InitializeManager(store, pilgrim.ManagerConfig{
+		Workers:     10,
+		QueueLength: 1000,
+	})
+	pilgrimManager.StartPilgrimage()
+
+	// Location Service
 	location.RunLocationService(log.Sub("location"))
 
+	// P2P API Service
 	p2p.AttachAPI(p2p.Sat, apiRouter, ratingManager)
+
+	// API service
 	api.AttachStore(store)
 	api.AttachAPI(log.Sub("api"), apiRouter)
 
 	log.Infof("Running API on %v", confDaemon.ApiListen)
 	log.Error(http.ListenAndServe(confDaemon.ApiListen, apiRouter))
 
-	select {}
+	<-make(chan interface{})
 }
