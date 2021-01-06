@@ -1,3 +1,5 @@
+# This project is discontinued.
+
 # Kimitzu Services
 
 This repository contains the API layer used by the [Kimitzu Client](https://github.com/kimitzu/kimitzu-client).
